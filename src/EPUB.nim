@@ -3,11 +3,11 @@ import ./EPUB/genericHelpers
 import zip/zipfiles
 import std/[streams, times, os, strutils, base64]
 
-type Epub = ref object
-    title, author: string
-    tableOfContents: NCX
-    opf: OPFPackage
-    opfMetaData: OPFMetaData
+type Epub* = ref object
+    title*, author*: string
+    tableOfContents*: NCX
+    opf*: OPFPackage
+    opfMetaData*: OPFMetaData
 
     #TODO: I will add support for volumes at a later date.
 
@@ -69,10 +69,11 @@ method EndEpubExport*(this: Epub, bookID: string, publisher: string): bool =
     this.archive.addFile("OEBPS/toc.ncx", newStringStream(this.tableOfContents.ToString()))
     this.archive.addFile("OEBPS/cover.xhtml", newstringStream("<?xml version='1.0' encoding='utf-8'?><html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\"><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"/><meta name=\"calibre:cover\" content=\"true\"/><title>Cover</title><style type=\"text/css\" title=\"override_css\">@page {padding: 0pt; margin:0pt}\nbody { text-align: center; padding:0pt; margin: 0pt; }</style></head><body><div><svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" width=\"100%\" height=\"100%\" viewBox=\"0 0 741 1186\" preserveAspectRatio=\"none\"><image width=\"741\" height=\"1186\" xlink:href=\"cover.jpeg\"/></svg></div></body></html>"))
 
+    this.archive.close()
     return true
 
 method AddPage*(this: Epub, page: Page): bool =
-    this.archive.addFile("OEBPS/Text/$1" % [page.fileName], page.text)
+    this.archive.addFile("OEBPS/Text/$1" % [page.fileName], newStringStream(page.text))
     for p in page.images:
         this.archive.addFile("OEBPS/Pictures/$1.jpeg" % [p.name], newStringStream(p.bytes))
         p.bytes = ""
