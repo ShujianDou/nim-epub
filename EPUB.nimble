@@ -3,7 +3,7 @@
 version       = "0.1.0"
 author        = "ShujianDou"
 description   = "Library for accessing and creating EPUBs"
-license       = "Proprietary"
+license       = "Apache"
 srcDir        = "src"
 
 
