@@ -15,7 +15,8 @@ type
     Image* = ref object
         name*: string
         location*: string
-        bytes*: seq[ref byte]
+        #String, since we're using getContent, which returns string.
+        bytes*: string
     Item* = object
         id*: string
         href*: string
@@ -58,22 +59,19 @@ type
         id*, text*, fileName*, location*: string
         images*: seq[ref Image]
 
-
-
-converter toMediaType(n: string): MediaType = parseEnum[MediaType](n)
 method ToString*(this: ref Image): string = "<div class=\"svg_outer svg_inner\"><svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" height=\"99%\" width=\"100%\" version=\"1.1\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 1135 1600\"><image xlink:href=\"$1.jpeg\" width=\"1135\" height=\"1600\"/></svg></div>" % [this.location]
 
-method ToString(this: DocTitle): string = "<docTitle><text>$1</text></docTitle>" % [this.name]
+method ToString*(this: DocTitle): string = "<docTitle><text>$1</text></docTitle>" % [this.name]
 
-method ToString(this: Item): string = "<item id=\"{id}\" href=\"{href}\" media-type=\"$1\"/>" % [symbolName(this.mediaType)]
+method ToString*(this: Item): string = "<item id=\"{id}\" href=\"{href}\" media-type=\"$1\"/>" % [symbolName(this.mediaType)]
 
-method ToString(this: Meta): string =
+method ToString*(this: Meta): string =
     if this.metaType == MetaType.meta:
         return "<meta content=\"$1\" name=\"$2\"/>" % [this.content, this.name]
     else:
         return "<dc:$1 $2</dc:$1>" % [this.name, this.content]
 
-method ToString(this: NavMap): string =
+method ToString*(this: NavMap): string =
     #https://www.w3.org/publishing/epub3/epub-packages.html#sec-manifest-elem
     var text: string = ""
     text.add("<navMap>\n")
@@ -93,3 +91,48 @@ method ToString(this: NavMap): string =
     text.add("</navMap>")
     return text
 
+method ToString*(this: TOCHeader): string =
+    var str: string = ""
+    str.add("<head>\n")
+    for meta in this.metaContent:
+        str.add(meta.ToString() & "\n")
+    str.add("</head>")
+    return str
+
+method ToString(this: OPFMetaData): string =
+    var str: string = "<metadata xmlns:opf=\"http://www.idpf.org/2007/opf\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\n"
+
+    for data in this.metaDataObjects:
+        str.add(data.ToString() & "\n")
+
+    str.add("</metadata>")
+
+method ToString(this: Manifest): string =
+    var str: string = "<manifest>\n"
+    for i in this.items:
+        str.add(i.ToString() & "\n")
+    str.add("</manifest>")
+
+method ToString(this: Spine): string =
+    var str: string = "<spine toc=\"ncx\">\n"
+    for i in this.items:
+        str.add("<itemref idref=\"$1\"/>" % [i.id] & "\n")
+    str.add("</spine>")
+    return str
+
+method ToString*(this: OPFPackage): string =
+    var str: string = "<package xmlns=\"http://www.idpf.org/2007/opf\" version=\"2.0\">\n"
+    str.add(this.metaData.ToString() & "\n")
+    str.add(this.manifest.ToString() & "\n")
+    str.add(this.spine.ToString() & "\n")
+    str.add("<guide><reference type=\"cover\" title=\"cover\" href=\"cover.xhtml\"/></guide>\n" & "</package>")
+    return str
+
+method ToString*(this: NCX): string =
+    var str = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" & "<!DOCTYPE ncx PUBLIC \" -//NISO//DTD ncx 2005-1//EN\"\n\"http://www.daisy.org/z3986/2005/ncx-2005-1.dtd\"><ncx version = \"2005-1\" xmlns = \"http://www.daisy.org/z3986/2005/ncx/\" >\n"
+
+    str.add(this.header.ToString() & "\n")
+    str.add(this.title.ToString() & "\n")
+    str.add(this.map.ToString() & "\n")
+    str.add("</ncx>")
+    return str

@@ -36,3 +36,8 @@ proc GeneratePage*(nodes: seq[TiNode], title: string): Page =
                 imageList.add(i)
     builder.add("</body></html>")
     return Page(id: title, text: builder, fileName: title, location: "", images: imageList)
+
+proc PageToItem*(page: Page): Item =
+    return Item(id: page.id, href: page.location, mediaType: MediaType.pXhtml)
+proc ImageToItem*(image: Image): Item =
+    return Item(id: image.name, href: image.location, mediaType: MediaType.pImage)
