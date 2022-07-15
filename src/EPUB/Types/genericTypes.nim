@@ -4,7 +4,7 @@ import std/[sequtils, strutils, enumutils]
 type
     #Enums
     MediaType* = enum
-        pXhtml = "xhtml", pImage = "image", pNcx = "ncx", pCss = "css"
+        pXhtml = "application/xhtml+xml", pImage = "application/x-dtbncx+xml", pNcx = "x-dtbncx+xml", pCss = "css"
     MetaType* = enum
         dc, meta
     #Objects
@@ -63,7 +63,7 @@ method ToString*(this: ref Image): string = "<div class=\"svg_outer svg_inner\">
 
 method ToString*(this: DocTitle): string = "<docTitle><text>$1</text></docTitle>" % [this.name]
 
-method ToString*(this: Item): string = "<item id=\"{id}\" href=\"{href}\" media-type=\"$1\"/>" % [symbolName(this.mediaType)]
+method ToString*(this: Item): string = "<item id=\"$1\" href=\"$2\" media-type=\"$3\"/>" % [this.id, this.href, $this.mediaType]
 
 method ToString*(this: Meta): string =
     if this.metaType == MetaType.meta:
@@ -79,14 +79,14 @@ method ToString*(this: NavMap): string =
     while i < this.points.len:
         var point: NavPoint = this.points[i]
         if point.isGrp:
-            text.add("<navPoint id=\"navPoint-{point.id}\" playOrder=\"$1\"><navLabel><text>{point.text}</text></navLabel>\n" % [point.playOrder])
+            text.add("<navPoint id=\"navPoint-$1\" playOrder=\"$2\"><navLabel><text>$3</text></navLabel>\n" % [$i, point.playOrder, point.text])
             var idx: int = 0
             while idx < point.sources.len:
-                text.add("<navPoint id=\"navPoint-$1-$2\" playOrder=\"$2\"><navLabel><text>$3</text></navLabel><content src=\"$4\"/></navPoint>\n" % [point.id, $idx, point.titles[idx], point.sources[idx]])
+                text.add("<navPoint id=\"navPoint-$1-$2\" playOrder=\"$3\"><navLabel><text>$3</text></navLabel><content src=\"$4\"/></navPoint>\n" % [$i, $idx, point.titles[idx], point.sources[idx]])
                 inc idx
             text.add("</navPoint>\n")
         else:
-            text.add("<navPoint id=\"navPoint-$1\" playOrder=\"$2\"><navLabel><text>$3</text></navLabel><content src=\"$4\"/></navPoint>\n" % [point.id, point.playOrder, point.text, point.source])
+            text.add("<navPoint id=\"navPoint-$1\" playOrder=\"$2\"><navLabel><text>$3</text></navLabel><content src=\"$4\"/></navPoint>\n" % [$i, $i, point.text, point.source])
         inc i
     text.add("</navMap>")
     return text
@@ -101,17 +101,16 @@ method ToString*(this: TOCHeader): string =
 
 method ToString(this: OPFMetaData): string =
     var str: string = "<metadata xmlns:opf=\"http://www.idpf.org/2007/opf\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\n"
-
     for data in this.metaDataObjects:
         str.add(data.ToString() & "\n")
-
     str.add("</metadata>")
-
+    return str
 method ToString(this: Manifest): string =
     var str: string = "<manifest>\n"
     for i in this.items:
         str.add(i.ToString() & "\n")
     str.add("</manifest>")
+    return str
 
 method ToString(this: Spine): string =
     var str: string = "<spine toc=\"ncx\">\n"

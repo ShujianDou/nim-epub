@@ -8,7 +8,7 @@ type Epub* = ref object
     tableOfContents*: NCX
     opf*: OPFPackage
     opfMetaData*: OPFMetaData
-
+    filePath: string
     #TODO: I will add support for volumes at a later date.
 
     archive: ZipArchive
@@ -25,8 +25,9 @@ method StartEpubExport*(this: Epub, filePath: string): bool =
 
     this.tableOfContents.title = DocTitle(name: this.title)
     this.tableOfContents.map = NavMap()
+    this.filePath = filePath
 
-    if not this.archive.open(filePath, fmReadWrite):
+    if not this.archive.open(filePath, fmWrite):
         echo "Failed To Open ZIP"
         quit(1)
 
@@ -35,29 +36,36 @@ method StartEpubExport*(this: Epub, filePath: string): bool =
 
     if this.cover != nil:
         this.archive.addFile("OEBPS/cover.jpeg", newFileStream(this.cover.location, fmRead))
+
+    this.archive.close()
     return true
 
-method EndEpubExport*(this: Epub, bookID: string, publisher: string): bool =
+# COVER IN BYTES
+method EndEpubExport*(this: Epub, bookID: string, publisher: string, cover: string): bool =
+    discard this.archive.open(this.filePath, fmAppend)
     this.opfMetaData = OPFMetaData()
-
     #Generate OPF MetaData
     this.opfMetaData.metaDataObjects.add(Meta(content: (">$1" % [this.title]), name: "title", metaType: MetaType.dc))
-    this.opfMetaData.metaDataObjects.add(Meta(content: ">en_US", name: "title", metaType: MetaType.dc))
-    this.opfMetaData.metaDataObjects.add(Meta(content: "opf:role=\"auth\" opf:file-as=\"{author}\">$1" % [this.author], name: "creator", metaType: MetaType.dc))
+    this.opfMetaData.metaDataObjects.add(Meta(content: ">en_US", name: "language", metaType: MetaType.dc))
+    this.opfMetaData.metaDataObjects.add(Meta(content: "opf:role=\"auth\" opf:file-as=\"$1\">$1" % [this.author], name: "creator", metaType: MetaType.dc))
     this.opfMetaData.metaDataObjects.add(Meta(content: "id=\"BookID\" opf:scheme=\"URI\">$1" % [bookID], name: "identifier", metaType: MetaType.dc))
     this.opfMetaData.metaDataObjects.add(Meta(content: ">$1" % [publisher], name: "publisher", metaType: MetaType.dc))
     this.opfMetaData.metaDataObjects.add(Meta(content: "cover", name: "cover", metaType: MetaType.meta))
-    this.opfMetaData.metaDataObjects.add(Meta(content: "1.0f", name:  this.author, metaType: MetaType.dc))
-    this.opfMetaData.metaDataObjects.add(Meta(content: "xmlns:opf=\"http://www.idpf.org/2007/opf\" opf:event=\"modification\">$1" % [$now()], name: "date", metaType: MetaType.dc))
+    this.opfMetaData.metaDataObjects.add(Meta(content: "1.0f", name:  this.author, metaType: MetaType.meta))
+    #this.opfMetaData.metaDataObjects.add(Meta(content: "xmlns:opf=\"http://www.idpf.org/2007/opf\" opf:event=\"modification\">$1" % [$now()], name: "date", metaType: MetaType.dc))
 
     var manifest: Manifest = Manifest()
-
+    this.tableOfContents.map = NavMap(points: @[])
     for page in this.pages:
-        manifest.items.add(PageToItem(page))
+        let pg = PageToItem(page)
+        manifest.items.add(pg)
+        this.tableOfContents.map.points.add(NavPoint(text: page.fileName, source: pg.href))
     for image in this.images:
         manifest.items.add(ImageToItem(image))
 
-    manifest.items.add(Item(id: "cover", href: "cover.jpeg", mediaType: MediaType.pImage))
+    if cover != "":
+      manifest.items.add(Item(id: "cover", href: "cover.jpeg", mediaType: MediaType.pImage))
+      this.archive.addFile("cover.jpeg", newStringStream(cover))
     manifest.items.add(Item(id: "ncx", href: "toc.ncx", mediaType: MediaType.pImage))
 
     var spine: Spine = Spine(items: manifest.items)
@@ -73,14 +81,18 @@ method EndEpubExport*(this: Epub, bookID: string, publisher: string): bool =
     return true
 
 method AddPage*(this: Epub, page: Page): bool =
-    this.archive.addFile("OEBPS/Text/$1" % [page.fileName], newStringStream(page.text))
+    discard this.archive.open(this.filePath, fmAppend)
+    this.archive.addFile("OEBPS/Text/$1.xhtml" % [page.fileName], newStringStream(page.text))
     for p in page.images:
         this.archive.addFile("OEBPS/Pictures/$1.jpeg" % [p.name], newStringStream(p.bytes))
         p.bytes = newStringOfCap(0)
     # No need to keep bytes or text in memory.
     page.text = newStringOfCap(0)
     this.pages.add(page)
-    return false
+    this.archive.close()
+    return true
 
-
-
+var epb: Epub = Epub(title: "Chay", author: "Hello")
+discard epb.StartEpubExport("/mnt/Aerial/work/Programming/EPUB/src/he.epub")
+discard epb.AddPage(GeneratePage(@[TiNode(text: "hello")], "helloWorld"))
+discard epb.EndEpubExport("001", "chay", "")

@@ -39,6 +39,6 @@ proc GeneratePage*(nodes: seq[TiNode], title: string): Page =
     return Page(id: title, text: builder, fileName: title, location: "", images: imageList)
 
 proc PageToItem*(page: Page): Item =
-    return Item(id: page.id, href: page.location, mediaType: MediaType.pXhtml)
+    return Item(id: page.id, href: "Text/" & page.id & ".xhtml", mediaType: MediaType.pXhtml)
 proc ImageToItem*(image: Image): Item =
-    return Item(id: image.name, href: image.location, mediaType: MediaType.pImage)
+    return Item(id: image.name, href: "Text/" & image.location, mediaType: MediaType.pImage)
