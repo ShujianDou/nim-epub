@@ -79,6 +79,7 @@ method AddPage*(this: Epub, page: Page): bool =
         p.bytes = newStringOfCap(0)
     # No need to keep bytes or text in memory.
     page.text = newStringOfCap(0)
+    this.pages.add(page)
     return false
 
 
