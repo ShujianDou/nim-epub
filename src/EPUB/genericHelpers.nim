@@ -34,6 +34,7 @@ proc GeneratePage*(nodes: seq[TiNode], title: string): Page =
                 builder.add(i.ToString())
                 builder.add("\n")
                 imageList.add(i)
+        inc idx
     builder.add("</body></html>")
     return Page(id: title, text: builder, fileName: title, location: "", images: imageList)
 

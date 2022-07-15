@@ -76,9 +76,9 @@ method AddPage*(this: Epub, page: Page): bool =
     this.archive.addFile("OEBPS/Text/$1" % [page.fileName], newStringStream(page.text))
     for p in page.images:
         this.archive.addFile("OEBPS/Pictures/$1.jpeg" % [p.name], newStringStream(p.bytes))
-        p.bytes = ""
+        p.bytes = newStringOfCap(0)
     # No need to keep bytes or text in memory.
-    page.text = ""
+    page.text = newStringOfCap(0)
     return false
 
 
