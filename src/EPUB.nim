@@ -91,8 +91,3 @@ method AddPage*(this: Epub, page: Page): bool =
     this.pages.add(page)
     this.archive.close()
     return true
-
-var epb: Epub = Epub(title: "Chay", author: "Hello")
-discard epb.StartEpubExport("/mnt/Aerial/work/Programming/EPUB/src/he.epub")
-discard epb.AddPage(GeneratePage(@[TiNode(text: "hello")], "helloWorld"))
-discard epb.EndEpubExport("001", "chay", "")
