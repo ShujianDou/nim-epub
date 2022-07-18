@@ -27,8 +27,7 @@ proc GeneratePage*(nodes: seq[TiNode], title: string): Page =
         if node.images.len <= 0:
             if node.ignoreParsing == false:
                 node.text = MakeTextXHTMLReader(node.text)
-            for x in split(node.text):
-                builder.add("<p>$1</p>" % x)
+                builder.add("<p>$1</p>" % node.text)
         else:
             for i in node.images:
                 builder.add(i.ToString())
