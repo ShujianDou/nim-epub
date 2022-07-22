@@ -4,7 +4,7 @@ import std/[sequtils, strutils, enumutils]
 type
     #Enums
     MediaType* = enum
-        pXhtml = "application/xhtml+xml", pImage = "application/x-dtbncx+xml", pNcx = "x-dtbncx+xml", pCss = "css"
+        pXhtml = "application/xhtml+xml", pImage = "image/jpeg", pNcx = "x-dtbncx+xml", pCss = "css"
     MetaType* = enum
         dc, meta
     #Objects
