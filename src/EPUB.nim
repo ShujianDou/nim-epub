@@ -45,13 +45,13 @@ method EndEpubExport*(this: Epub, bookID: string, publisher: string, cover: stri
     discard this.archive.open(this.filePath, fmAppend)
     this.opfMetaData = OPFMetaData()
     #Generate OPF MetaData
-    this.opfMetaData.metaDataObjects.add(Meta(content: (">$1" % [this.title]), name: "title", metaType: MetaType.dc))
+    this.opfMetaData.metaDataObjects.add(Meta(content: (">$1" % [EscapeValues(this.title)]), name: "title", metaType: MetaType.dc))
     this.opfMetaData.metaDataObjects.add(Meta(content: ">en_US", name: "language", metaType: MetaType.dc))
-    this.opfMetaData.metaDataObjects.add(Meta(content: "opf:role=\"auth\" opf:file-as=\"$1\">$1" % [this.author], name: "creator", metaType: MetaType.dc))
+    this.opfMetaData.metaDataObjects.add(Meta(content: "opf:role=\"auth\" opf:file-as=\"$1\">$1" % [EscapeValues(this.author)], name: "creator", metaType: MetaType.dc))
     this.opfMetaData.metaDataObjects.add(Meta(content: "id=\"BookID\" opf:scheme=\"URI\">$1" % [bookID], name: "identifier", metaType: MetaType.dc))
-    this.opfMetaData.metaDataObjects.add(Meta(content: ">$1" % [publisher], name: "publisher", metaType: MetaType.dc))
+    this.opfMetaData.metaDataObjects.add(Meta(content: ">$1" % [EscapeValues(publisher)], name: "publisher", metaType: MetaType.dc))
     this.opfMetaData.metaDataObjects.add(Meta(content: "cover", name: "cover", metaType: MetaType.meta))
-    this.opfMetaData.metaDataObjects.add(Meta(content: "1.0f", name:  this.author, metaType: MetaType.meta))
+    this.opfMetaData.metaDataObjects.add(Meta(content: "1.0f", name: EscapeValues(this.author), metaType: MetaType.meta))
     #this.opfMetaData.metaDataObjects.add(Meta(content: "xmlns:opf=\"http://www.idpf.org/2007/opf\" opf:event=\"modification\">$1" % [$now()], name: "date", metaType: MetaType.dc))
 
     var manifest: Manifest = Manifest()
@@ -64,7 +64,7 @@ method EndEpubExport*(this: Epub, bookID: string, publisher: string, cover: stri
         manifest.items.add(ImageToItem(image))
 
     if cover != "":
-      manifest.items.add(Item(id: "cover", href: "cover.jpeg", mediaType: MediaType.pImage))
+      manifest.items.add(Item(id: "cover", href: "../cover.jpeg", mediaType: MediaType.pImage))
       this.archive.addFile("cover.jpeg", newStringStream(cover))
     manifest.items.add(Item(id: "ncx", href: "toc.ncx", mediaType: MediaType.pImage))
 
@@ -75,7 +75,7 @@ method EndEpubExport*(this: Epub, bookID: string, publisher: string, cover: stri
     #Export Finalize
     this.archive.addFile("OEBPS/content.opf", newStringstream(this.opf.ToString()))
     this.archive.addFile("OEBPS/toc.ncx", newStringStream(this.tableOfContents.ToString()))
-    this.archive.addFile("OEBPS/cover.xhtml", newstringStream("<?xml version='1.0' encoding='utf-8'?><html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\"><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"/><meta name=\"calibre:cover\" content=\"true\"/><title>Cover</title><style type=\"text/css\" title=\"override_css\">@page {padding: 0pt; margin:0pt}\nbody { text-align: center; padding:0pt; margin: 0pt; }</style></head><body><div><svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" width=\"100%\" height=\"100%\" viewBox=\"0 0 741 1186\" preserveAspectRatio=\"none\"><image width=\"741\" height=\"1186\" xlink:href=\"cover.jpeg\"/></svg></div></body></html>"))
+    this.archive.addFile("OEBPS/cover.xhtml", newstringStream("<?xml version='1.0' encoding='utf-8'?><html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\"><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"/><meta name=\"calibre:cover\" content=\"true\"/><title>Cover</title><style type=\"text/css\" title=\"override_css\">@page {padding: 0pt; margin:0pt}\nbody { text-align: center; padding:0pt; margin: 0pt; }</style></head><body><div><svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" width=\"100%\" height=\"100%\" viewBox=\"0 0 741 1186\" preserveAspectRatio=\"none\"><image width=\"741\" height=\"1186\" xlink:href=\"../cover.jpeg\"/></svg></div></body></html>"))
 
     this.archive.close()
     return true
