@@ -42,7 +42,7 @@ method StartEpubExport*(this: Epub, filePath: string): bool =
 
 # COVER IN BYTES
 method EndEpubExport*(this: Epub, bookID: string, publisher: string, cover: string): bool =
-    discard this.archive.open(this.filePath, fmAppend)
+    assert this.archive.open(this.filePath, fmAppend) == true
     this.opfMetaData = OPFMetaData()
     #Generate OPF MetaData
     this.opfMetaData.metaDataObjects.add(Meta(content: (">$1" % [EscapeValues(this.title)]), name: "title", metaType: MetaType.dc))
@@ -81,7 +81,7 @@ method EndEpubExport*(this: Epub, bookID: string, publisher: string, cover: stri
     return true
 
 method AddPage*(this: Epub, page: Page): bool =
-    discard this.archive.open(this.filePath, fmAppend)
+    assert this.archive.open(this.filePath, fmAppend) == true
     this.archive.addFile("OEBPS/Text/$1.xhtml" % [page.fileName], newStringStream(page.text))
     for p in page.images:
         this.archive.addFile("OEBPS/Pictures/$1.jpeg" % [p.name], newStringStream(p.bytes))
