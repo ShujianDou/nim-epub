@@ -23,6 +23,14 @@ method StartEpubExport*(this: Epub, filePath: string): bool =
   this.tableOfContents.title = DocTitle(name: this.title)
   this.tableOfContents.map = NavMap()
   this.filePath = filePath
+  #Directory Creation
+  if not existsDir(filePath):
+    createDir(filePath)
+    createDir(filePath & "/META-INF")
+    createDir(filePath & "/OEBPS")
+    createDir(filePath & "/OEBPS/Text")
+    createDir(filePath & "/OEBPS/Pictures")
+
   writeFile(filePath & "/META-INF/container.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><container version = \"1.0\" xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\"><rootfiles><rootfile full-path=\"OEBPS/content.opf\" media-type=\"application/oebps-package+xml\"/></rootfiles></container>")
   writeFile(filePath & "/mimetype", "application/epub+zip")
   return true
