@@ -1,4 +1,4 @@
-import std/strutils
+import std/[strutils, unicode]
 import ./Types/genericTypes
 
 proc MakeTextXHTMLReader(text: string): string =
@@ -16,10 +16,15 @@ proc MakeTextXHTMLReader(text: string): string =
     return builder
 proc EscapeValues*(text: string): string =
     var str = ""
+    var runes = toRunes(text)
     var i = 0
-    while i < text.len:
-        if (ord(text[i]) >= ord(' ')) and (ord(text[i]) <= ord('~')):
-            str.add($text[i])
+    while i < runes.len:
+        if (ord(runes[i]) >= ord(' ')) and (ord(runes[i]) <= ord('~')):
+            str.add($runes[i])
+        else:
+            var hex = runes[i].int.toHex()
+            hex.removePrefix('0')
+            str.add("&#x" & hex & ";")
         inc i
     return str
 proc GeneratePage*(nodes: seq[TiNode], title: string): Page =
