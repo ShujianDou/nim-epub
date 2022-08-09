@@ -73,7 +73,7 @@ method EndEpubExport*(this: Epub, bookID: string, publisher: string, cover: stri
 method AddPage*(this: Epub, page: Page): bool =
   writeFile(this.filePath & "/OEBPS/Text/$1.xhtml" % [page.fileName], page.text)
   for p in page.images:
-      writeFile(this.filePath & "/OEBPS/Pictures/$1.jpeg" % [p.name], p.bytes)
+      writeFile(this.filePath & "/OEBPS/Pictures/" & p.name, p.bytes)
       p.bytes = newStringOfCap(0)
   # No need to keep bytes or text in memory.
   page.text = newStringOfCap(0)
