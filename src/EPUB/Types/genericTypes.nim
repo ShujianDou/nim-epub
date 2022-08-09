@@ -48,7 +48,7 @@ type
     TiNode* = ref object
         text*: string
         ignoreParsing*: bool
-        images*: seq[ref Image]
+        images*: seq[Image]
         children*: seq[TiNode]
     NCX* = object
         str*: string
@@ -57,9 +57,9 @@ type
         map*: NavMap
     Page* = ref object
         id*, text*, fileName*, location*: string
-        images*: seq[ref Image]
+        images*: seq[Image]
 
-method ToString*(this: ref Image): string = "<div class=\"svg_outer svg_inner\"><svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" height=\"99%\" width=\"100%\" version=\"1.1\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 1135 1600\"><image xlink:href=\"$1.jpeg\" width=\"1135\" height=\"1600\"/></svg></div>" % [this.location]
+method ToString*(this: Image): string = "<div class=\"svg_outer svg_inner\"><svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" height=\"99%\" width=\"100%\" version=\"1.1\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 1135 1600\"><image xlink:href=\"$1.jpeg\" width=\"1135\" height=\"1600\"/></svg></div>" % [this.location]
 
 method ToString*(this: DocTitle): string = "<docTitle><text>$1</text></docTitle>" % [this.name]
 

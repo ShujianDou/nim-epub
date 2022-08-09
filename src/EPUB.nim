@@ -10,7 +10,7 @@ type Epub* = ref object
   opfMetaData*: OPFMetaData
   filePath: string
   #TODO: I will add support for volumes at a later date.
-  cover: ref Image
+  cover: Image
   pages: seq[Page]
   images: seq[Image]
 
