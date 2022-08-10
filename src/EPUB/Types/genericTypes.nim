@@ -67,7 +67,7 @@ method ToString*(this: Item): string = "<item id=\"$1\" href=\"$2\" media-type=\
 
 method ToString*(this: Meta): string =
     if this.metaType == MetaType.meta:
-        return "<meta content=\"$1\" name=\"$2\"/>" % [this.content, this.name]
+        return "<meta name=\"$1\" content=\"$2\"/>" % [this.name, this.content]
     else:
         return "<dc:$1 $2</dc:$1>" % [this.name, this.content]
 
@@ -119,8 +119,8 @@ method ToString(this: Spine): string =
     str.add("</spine>")
     return str
 
-method ToString*(this: OPFPackage): string =
-    var str: string = "<package xmlns=\"http://www.idpf.org/2007/opf\" version=\"2.0\">\n"
+method ToString*(this: OPFPackage, uniqueId: string): string =
+    var str: string = "<package xmlns=\"http://www.idpf.org/2007/opf\" version=\"2.0\" unique-identifier=\"$1\">\n" % [uniqueId]
     str.add(this.metaData.ToString() & "\n")
     str.add(this.manifest.ToString() & "\n")
     str.add(this.spine.ToString() & "\n")
