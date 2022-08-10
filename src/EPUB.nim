@@ -55,12 +55,13 @@ method EndEpubExport*(this: Epub, bookID: string, publisher: string, cover: stri
       let pg = PageToItem(page)
       manifest.items.add(pg)
       this.tableOfContents.map.points.add(NavPoint(text: page.fileName, source: pg.href))
-  for image in this.images:
-      manifest.items.add(ImageToItem(image))
+      for image in page.images:
+          manifest.items.add(ImageToItem(image))
   if cover != "":
     manifest.items.add(Item(id: "cover", href: "../cover.jpeg", mediaType: MediaType.pImage))
     writeFile(this.filePath & "/cover.jpeg", cover)
   manifest.items.add(Item(id: "ncx", href: "toc.ncx", mediaType: MediaType.pNcx))
+  manifest.items.add(Item(id: "coverpage", href: "cover.xhtml", mediaType: MediaType.pXhtml))
   var spine: Spine = Spine(items: manifest.items)
   this.opf = OPFPackage(metaData: this.opfMetaData, manifest: manifest, spine: spine)
   #Export Finalize

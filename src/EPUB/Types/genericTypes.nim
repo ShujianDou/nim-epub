@@ -115,6 +115,7 @@ method ToString(this: Manifest): string =
 method ToString(this: Spine): string =
     var str: string = "<spine toc=\"ncx\">\n"
     for i in this.items:
+        if i.mediaType == MediaType.pImage or i.mediaType == MediaType.pNcx: continue # Images and TOC should not be added to the TOC
         str.add("<itemref idref=\"$1\"/>" % [i.id] & "\n")
     str.add("</spine>")
     return str
