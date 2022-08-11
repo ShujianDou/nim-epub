@@ -55,7 +55,7 @@ proc GeneratePage*(nodes: seq[TiNode], title: string): Page =
                 imageList.add(i)
         inc idx
     builder.add("</body></html>")
-    return Page(id: SanitizePageProp(title), text: builder, fileName: title, location: "", images: imageList)
+    return Page(id: SanitizePageProp(title), text: builder, fileName: title.replace("\"", ""), location: "", images: imageList)
 
 proc PageToItem*(page: Page): Item =
     return Item(id: page.id, href: "Text/" & page.fileName & ".xhtml", mediaType: MediaType.pXhtml)
