@@ -73,3 +73,4 @@ proc AddPage*(this: Epub3, name: string, xhtmlText: string, relativePath = "Page
   a.add newText(name)
   liElA.add a
   this.tableOfContentsNavigator.add liElA
+  writeFile(this.locationOnDisk / relativePath & name, xhtmlText)
