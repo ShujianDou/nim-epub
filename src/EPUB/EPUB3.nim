@@ -59,18 +59,37 @@ proc CreateEpub3*(metaData: seq[metaDataList], path: string): Epub3 =
   # Generate TOC, WITHOUT HTML body.
   epub.tableOfContentsNavigator = GenXMLElementWithAttrs("ol", {"epub:type": "list"})
   # Create default dirs.
-  createDir path / "META-INF"
-  createDir path / "OPF"
-  createDir path / "OPF" / "Pages"
-  createDir path / "OPF" / "Images"
+  createDir(path)
+  createDir(path / "META-INF")
+  createDir(path / "OPF")
+  createDir(path / "OPF" / "Pages")
+  createDir(path / "OPF" / "Images")
 
 
-proc AddPage*(this: Epub3, name: string, xhtmlText: string, relativePath = "Pages/") =
-  this.manifest.add(GenXMLElementWithAttrs("item", {"id": $this.len, "href": relativePath / name, "media-type": "application/xhtml+xml"}))
+proc AddPage*(this: Epub3, page: Page, relativePath = "Pages/") =
+  this.manifest.add(GenXMLElementWithAttrs("item", {"id": $this.len, "href": relativePath / page.name, "media-type": "application/xhtml+xml"}))
   this.spine.add(GenXMLElementWithAttrs("itemref", {"idref": $this.len}))
   var liElA = newElement("li")
-  var a = GenXMLElementWithAttrs("a", {"href": relativePath / name})
-  a.add newText(name)
+  var a = GenXMLElementWithAttrs("a", {"href": relativePath / page.name})
+  a.add newText(page.name)
   liElA.add a
   this.tableOfContentsNavigator.add liElA
-  writeFile(this.locationOnDisk / relativePath & name, xhtmlText)
+  writeFile(this.locationOnDisk / relativePath & page.name, page.xhtml)
+  inc this.len
+
+# To prevent hogging memory with image files, recommend calling this and unreferencing image bytes after write.
+proc AddImage*(this: Epub3, image: Image, relativePath = "Image/") =
+  assert image.name.split['.'].len > 1
+  this.manifest.add GenXMLElementWithAttrs("item", {"id": $this.len, "href": relativePath / image.name, "media-type": image.imageType.symbolName})
+  this.spine.add GenXMLElementWithAttrs("itemref", {"idref": $this.len})
+  writeFile(this.locationOnDisk / relativePath & image.name, image.bytes)
+
+proc GeneratePage*(name: string, tiNodes: seq[TiNode], relativeImagePath = "Images/"): Page =
+  assert name != ""
+  var xhtml: string = xhtmlifyTiNode(tiNodes)
+  if(name.split['.'].len == 1):
+    name.add ".xhtml"
+  return Page(name: name, xhtml: xhtml)
+
+proc FinalizeEpub*(this: Epub3) =
+  discard

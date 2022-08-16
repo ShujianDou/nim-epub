@@ -8,3 +8,14 @@ type
     mp3 = "audio/mpeg", mp4 = "audio/mp4"
   MetaType* = enum
       dc, meta
+  Image* = ref object
+    name*: string
+    imageType*: ImageType
+    bytes*: string
+  TiNode* = ref object
+    text*: string
+    images*: seq[Image]
+    #children*: seq[TiNode]
+  Page* = ref object
+    name*: string
+    xhtml*: string
