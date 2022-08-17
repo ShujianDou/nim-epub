@@ -78,7 +78,7 @@ proc AddPage*(this: Epub3, page: Page, relativePath = "Pages/") =
   this.spine.add(GenXMLElementWithAttrs("itemref", {"idref": "s" & $this.len}))
   var liElA = newElement("li")
   var a = GenXMLElementWithAttrs("a", {"href": relativePath / page.name})
-  a.add newText(page.name[0..^6])
+  a.add newText(page.name[0..^7])
   liElA.add a
   this.tableOfContentsNavigator.add liElA
   echo this.locationOnDisk

@@ -26,4 +26,4 @@ proc xhtmlifyTiNode*(nodes: seq[TiNode], title: string, imgPath: string): string
     for image in n.images:
       xhtmlNode.add GenXMLElementWithAttrs("img", {"href": imgPath / image.name})
     continue
-  return $InlineElementBuilder(GenXMLElementWithAttrs("html", {"xmlns": "http://www.w3.org/1999/xhtml", "xmlns": "http://www.idpf.org/2007/ops"}), @[nestedElement(self: addMultipleNodes(newElement("head"), @[GenXMLElementWithAttrs("meta", {"http-equiv": "default-style", "content": "text/html; charset=utf-8"}), addMultipleNodes(newElement("title"), @[newText(title)])]), children: @[]), nestedElement(self: xhtmlNode, children: @[])])
+  return $InlineElementBuilder(GenXMLElementWithAttrs("html", {"xmlns": "http://www.w3.org/1999/xhtml", "xmlns:epub": "http://www.idpf.org/2007/ops"}), @[nestedElement(self: addMultipleNodes(newElement("head"), @[GenXMLElementWithAttrs("meta", {"http-equiv": "default-style", "content": "text/html; charset=utf-8"}), addMultipleNodes(newElement("title"), @[newText(title)])]), children: @[]), nestedElement(self: xhtmlNode, children: @[])])
