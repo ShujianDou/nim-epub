@@ -106,3 +106,6 @@ proc FinalizeEpub*(this: Epub3) =
   this.tableOfContents = addMultipleNodes(GenXMLElementWithAttrs("html", {"xmlns": "http://www.w3.org/1999/xhtml", "xmlns:epub": "http://www.idpf.org/2007/ops"}), @[addMultipleNodes(newElement("head"), @[GenXMLElementWithAttrs("meta", {"http-equiv": "default-style", "content": "text/html; charset=utf-8"}), addMultipleNodes(newElement("title"), @[newText("Contents")])]), addMultipleNodes(newElement("body"), @[addMultipleNodes(GenXMLElementWithAttrs("nav", {"epub:type": "toc"}), @[addMultipleNodes(newElement("h2"), @[newText("text")]), this.tableOfContentsNavigator])])])
   writeFile(this.locationOnDisk / "OPF" / "TOC.xhtml", xmlHeader & "\n" & $this.tableOfContents)
   this.tableOfContents = nil
+  createZipArchive(this.locationOnDisk & "/", this.locationOnDisk[0..^2] & ".epub")
+  removeDir(this.locationOnDisk)
+
