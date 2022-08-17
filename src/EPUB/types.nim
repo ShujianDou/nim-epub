@@ -6,6 +6,8 @@ type
     gif = "image/gif", jpeg = "image/jpeg", png = "image/png", svg = "image/svg+xml"
   AudioType* = enum
     mp3 = "audio/mpeg", mp4 = "audio/mp4"
+  TextKind* = enum
+    h = "h1", p = "p"
   MetaType* = enum
       dc, meta
   Image* = ref object
@@ -13,6 +15,7 @@ type
     imageType*: ImageType
     bytes*: string
   TiNode* = ref object
+    kind*: TextKind
     text*: string
     images*: seq[Image]
     #children*: seq[TiNode]

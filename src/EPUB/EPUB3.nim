@@ -1,17 +1,18 @@
-import std/[xmlparser, parsexml, xmltree, os, strutils, strtabs]
+import std/[xmlparser, parsexml, xmltree, os, strutils, strtabs, enumutils]
 import ./types, ./genericHelpers
 import zippy/ziparchives
 
 # Based off of https://www.w3.org/publishing/epub3/epub-overview.html#sec-nav
+const xmlHeader: string = "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>"
 type
   attr = tuple[key, val: string]
-  metaDataList = tuple[metaType: MetaType, name: string, attrs: seq[attr], text: string]
+  metaDataList* = tuple[metaType: MetaType, name: string, attrs: seq[attr], text: string]
   Epub3* = ref object
     len: int
     locationOnDisk: string
     # https://www.w3.org/publishing/epub3/epub-packages.html#sec-package-nav-def
     metaData: XmlNode
-    manifest: XmlNode
+    manifest*: XmlNode
     spine: XmlNode
     tableOfContents: XmlNode
     tableOfContentsNavigator: XmlNode
@@ -27,6 +28,8 @@ proc OpenEpub3*(path: string): Epub3 =
     diskPath = "./" & path.split('/')[^1]
   extractAll(path, diskPath)
   #https://www.w3.org/publishing/epub3/epub-packages.html#sec-spine-elem
+  let metaInf: XmlNode = parseXml(readFile(diskPath / "META-INF" / "container.xml"))
+  # TODO: load opf from container, instead of trying to get an arbitrary directory.
   let navigator = parseXml(readFile(diskPath / "OPF" / "package.opf"))
   epub.metaData = navigator.child("metadata")
   epub.manifest = navigator.child("manifest")
@@ -40,6 +43,8 @@ proc OpenEpub3*(path: string): Epub3 =
 proc CreateEpub3*(metaData: seq[metaDataList], path: string): Epub3 =
   var epub: Epub3 = Epub3()
   epub.locationOnDisk = path
+  if epub.locationOnDisk[0..1] == "./" or epub.locationOnDisk[0..1] == ".\\":
+    epub.locationOnDisk = getCurrentDir() / epub.locationOnDisk[2..^1]
   # Generate MetaData
   epub.metaData = GenXMLElementWithAttrs("metadata", {"xmlns:dc": "http://purl.org/dc/elements/1.1/"})
   # Add Elements To MetaData
@@ -51,9 +56,10 @@ proc CreateEpub3*(metaData: seq[metaDataList], path: string): Epub3 =
       mdataElem = newElement($i.metaType & " " & i.name)
     mdataElem.attrs = i.attrs.toXmlAttributes
     mdataElem.add newText(i.text)
+    epub.metaData.add mdataElem
   # Generate Manifest, And Add TOC.
   epub.manifest = newElement("manifest")
-  epub.manifest.add(GenXMLElementWithAttrs("item", {"properties": "nav", "href": "TOC.xhtml", "media-type": "application/xhtml+xml"}))
+  epub.manifest.add(GenXMLElementWithAttrs("item", {"id": "toc", "properties": "nav", "href": "TOC.xhtml", "media-type": "application/xhtml+xml"}))
   # Generate Spine w/ prog dir"
   epub.spine = GenXMLElementWithAttrs("spine", {"page-progression-direction": "ltr"})
   # Generate TOC, WITHOUT HTML body.
@@ -61,35 +67,42 @@ proc CreateEpub3*(metaData: seq[metaDataList], path: string): Epub3 =
   # Create default dirs.
   createDir(path)
   createDir(path / "META-INF")
+  writeFile(path / "META-INF" / "container.xml", xmlHeader & "\n" & $addMultipleNodes(GenXMLElementWithAttrs("container", {"version": "1.0", "xmlns": "urn:oasis:names:tc:opendocument:xmlns:container"}), @[addMultipleNodes(newElement("rootfiles"), @[GenXMLElementWithAttrs("rootfile", {"full-path": "OPF/package.opf", "media-type": "application/oebps-package+xml"})])]))
   createDir(path / "OPF")
   createDir(path / "OPF" / "Pages")
   createDir(path / "OPF" / "Images")
-
+  return epub
 
 proc AddPage*(this: Epub3, page: Page, relativePath = "Pages/") =
-  this.manifest.add(GenXMLElementWithAttrs("item", {"id": $this.len, "href": relativePath / page.name, "media-type": "application/xhtml+xml"}))
-  this.spine.add(GenXMLElementWithAttrs("itemref", {"idref": $this.len}))
+  this.manifest.add(GenXMLElementWithAttrs("item", {"id": "s" & $this.len, "href": relativePath / page.name, "media-type": "application/xhtml+xml"}))
+  this.spine.add(GenXMLElementWithAttrs("itemref", {"idref": "s" & $this.len}))
   var liElA = newElement("li")
   var a = GenXMLElementWithAttrs("a", {"href": relativePath / page.name})
-  a.add newText(page.name)
+  a.add newText(page.name[0..^6])
   liElA.add a
   this.tableOfContentsNavigator.add liElA
-  writeFile(this.locationOnDisk / relativePath & page.name, page.xhtml)
+  echo this.locationOnDisk
+  writeFile(this.locationOnDisk / "OPF" / relativePath & page.name, xmlHeader & "\n" & page.xhtml)
   inc this.len
 
 # To prevent hogging memory with image files, recommend calling this and unreferencing image bytes after write.
 proc AddImage*(this: Epub3, image: Image, relativePath = "Image/") =
-  assert image.name.split['.'].len > 1
-  this.manifest.add GenXMLElementWithAttrs("item", {"id": $this.len, "href": relativePath / image.name, "media-type": image.imageType.symbolName})
-  this.spine.add GenXMLElementWithAttrs("itemref", {"idref": $this.len})
-  writeFile(this.locationOnDisk / relativePath & image.name, image.bytes)
+  assert image.name.split('.').len > 1
+  this.manifest.add GenXMLElementWithAttrs("item", {"id": "s" & $this.len, "href": relativePath / image.name, "media-type": symbolName(image.imageType)})
+  this.spine.add GenXMLElementWithAttrs("itemref", {"idref": "s" & $this.len})
+  writeFile(this.locationOnDisk / "OPF" / relativePath & image.name, image.bytes)
 
 proc GeneratePage*(name: string, tiNodes: seq[TiNode], relativeImagePath = "Images/"): Page =
   assert name != ""
-  var xhtml: string = xhtmlifyTiNode(tiNodes)
-  if(name.split['.'].len == 1):
-    name.add ".xhtml"
-  return Page(name: name, xhtml: xhtml)
+  var xhtml: string = xhtmlifyTiNode(tiNodes, name, relativeImagePath)
+  return Page(name: name & ".xhtml", xhtml: xhtml)
 
 proc FinalizeEpub*(this: Epub3) =
-  discard
+  var package = addMultipleNodes(GenXMLElementWithAttrs("package", {"xmlns": "http://www.idpf.org/2007/opf",
+    "version": "3.0", "xml:lang": "en", "unique-identifier": "pub-id", "prefix": "rendition: http://www.idpf.org/vocab/rendition/#"}),
+    @[this.metaData, this.manifest, this.spine])
+  writeFile(this.locationOnDisk / "OPF" / "package.opf", xmlHeader & "\n" & $package)
+  package = nil
+  this.tableOfContents = addMultipleNodes(GenXMLElementWithAttrs("html", {"xmlns": "http://www.w3.org/1999/xhtml", "xmlns:epub": "http://www.idpf.org/2007/ops"}), @[addMultipleNodes(newElement("head"), @[GenXMLElementWithAttrs("meta", {"http-equiv": "default-style", "content": "text/html; charset=utf-8"}), addMultipleNodes(newElement("title"), @[newText("Contents")])]), addMultipleNodes(newElement("body"), @[addMultipleNodes(GenXMLElementWithAttrs("nav", {"epub:type": "toc"}), @[addMultipleNodes(newElement("h2"), @[newText("text")]), this.tableOfContentsNavigator])])])
+  writeFile(this.locationOnDisk / "OPF" / "TOC.xhtml", xmlHeader & "\n" & $this.tableOfContents)
+  this.tableOfContents = nil
