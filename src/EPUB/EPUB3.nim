@@ -88,14 +88,21 @@ proc AddPage*(this: Epub3, page: Page, relativePath = "Pages/") =
 # To prevent hogging memory with image files, recommend calling this and unreferencing image bytes after write.
 proc AddImage*(this: Epub3, image: Image, relativePath = "Image/") =
   assert image.name.split('.').len > 1
-  this.manifest.add GenXMLElementWithAttrs("item", {"id": "s" & $this.len, "href": relativePath / image.name, "media-type": symbolName(image.imageType)})
+  this.manifest.add GenXMLElementWithAttrs("item", {"id": "s" & $this.len, "href": relativePath / image.name, "media-type": parseEnum(image.imageType)})
   this.spine.add GenXMLElementWithAttrs("itemref", {"idref": "s" & $this.len})
   writeFile(this.locationOnDisk / "OPF" / relativePath & image.name, image.bytes)
+  inc this.len
 
 proc GeneratePage*(name: string, tiNodes: seq[TiNode], relativeImagePath = "Images/"): Page =
   assert name != ""
   var xhtml: string = xhtmlifyTiNode(tiNodes, name, relativeImagePath)
   return Page(name: name & ".xhtml", xhtml: xhtml)
+
+proc AssignCover*(this: Epub3, image: Image, relativePath = "") =
+  this.manifest.add GenXMLElementWithAttrs("item", {"id": "cover", href: "../" & image.name, "media-type": parseEnum(image.imageType)})
+  this.spine.add GenXMLElementWithAttrs("itemref", {"idref": "cover"})
+  this.metaData.add GenXMLElementWithAttrs("meta", {"name": "cover", "content": "cover"})
+  AddImage(this, image, relativePath)
 
 proc FinalizeEpub*(this: Epub3) =
   var package = addMultipleNodes(GenXMLElementWithAttrs("package", {"xmlns": "http://www.idpf.org/2007/opf",
