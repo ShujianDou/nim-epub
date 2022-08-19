@@ -81,7 +81,6 @@ proc AddPage*(this: Epub3, page: Page, relativePath = "Pages/") =
   a.add newText(page.name[0..^7])
   liElA.add a
   this.tableOfContentsNavigator.add liElA
-  echo this.locationOnDisk
   writeFile(this.locationOnDisk / "OPF" / relativePath & page.name, xmlHeader & "\n" & page.xhtml)
   inc this.len
 
@@ -90,8 +89,11 @@ proc AddImage*(this: Epub3, image: Image, relativePath = "Image/") =
   assert image.name.split('.').len > 1
   this.manifest.add GenXMLElementWithAttrs("item", {"id": "s" & $this.len, "href": relativePath / image.name, "media-type": $(image.imageType)})
   this.spine.add GenXMLElementWithAttrs("itemref", {"idref": "s" & $this.len})
-  writeFile(this.locationOnDisk / "OPF" / relativePath & image.name, image.bytes)
   inc this.len
+  if relativePath == "":
+    writeFile(this.locationOnDisk / image.name, image.bytes)
+    return
+  writeFile(this.locationOnDisk / "OPF" / relativePath & image.name, image.bytes)
 
 proc GeneratePage*(name: string, tiNodes: seq[TiNode], relativeImagePath = "Images/"): Page =
   assert name != ""

@@ -7,7 +7,7 @@ type
   AudioType* = enum
     mp3 = "audio/mpeg", mp4 = "audio/mp4"
   TextKind* = enum
-    h1 = "h1", p = "p"
+    p = "p", h1 = "h1"
   MetaType* = enum
       dc, meta
   Image* = ref object
