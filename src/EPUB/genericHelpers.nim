@@ -27,3 +27,11 @@ proc xhtmlifyTiNode*(nodes: seq[TiNode], title: string, imgPath: string): string
       xhtmlNode.add GenXMLElementWithAttrs("img", {"href": "../" & imgPath / image.name})
     continue
   return $InlineElementBuilder(GenXMLElementWithAttrs("html", {"xmlns": "http://www.w3.org/1999/xhtml", "xmlns:epub": "http://www.idpf.org/2007/ops"}), @[nestedElement(self: addMultipleNodes(newElement("head"), @[GenXMLElementWithAttrs("meta", {"http-equiv": "default-style", "content": "text/html; charset=utf-8"}), addMultipleNodes(newElement("title"), @[newText(title)])]), children: @[]), nestedElement(self: xhtmlNode, children: @[])])
+proc SanitizePageProp*(filename: string): string =
+  var newStr: string = ""
+  var oS = filename.toLowerAscii()
+  for chr in oS:
+    # what is regex
+    if (ord(chr) >= ord('a') and ord(chr) <= ord('z')) or (ord(chr) >= ord('0') and ord(chr) <= ord('9')) or (ord(chr) == ord('_')) or (ord(chr) == ord('.')):
+      newStr.add(chr)
+  return newStr
