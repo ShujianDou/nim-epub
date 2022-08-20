@@ -57,6 +57,7 @@ proc CreateEpub3*(metaData: seq[metaDataList], path: string): Epub3 =
     mdataElem.attrs = i.attrs.toXmlAttributes
     mdataElem.add newText(i.text)
     epub.metaData.add mdataElem
+  epub.metaData.add addMultipleNodes(GenXMLElementWithAttrs("dc:identifier", {"id": "pub-id"}), @[newText("pub-id")])
   # Generate Manifest, And Add TOC.
   epub.manifest = newElement("manifest")
   epub.manifest.add(GenXMLElementWithAttrs("item", {"id": "toc", "properties": "nav", "href": "TOC.xhtml", "media-type": "application/xhtml+xml"}))
@@ -88,7 +89,8 @@ proc AddPage*(this: Epub3, page: Page, relativePath = "Pages/") =
 proc AddImage*(this: Epub3, image: Image, relativePath = "Image/") =
   assert image.name.split('.').len > 1
   this.manifest.add GenXMLElementWithAttrs("item", {"id": "s" & $this.len, "href": relativePath / image.name, "media-type": $(image.imageType)})
-  this.spine.add GenXMLElementWithAttrs("itemref", {"idref": "s" & $this.len})
+  # Compat issue in spine with non-xhtml components
+  #this.spine.add GenXMLElementWithAttrs("itemref", {"idref": "s" & $this.len})
   inc this.len
   if relativePath == "":
     writeFile(this.locationOnDisk / image.name, image.bytes)
@@ -102,9 +104,10 @@ proc GeneratePage*(name: string, tiNodes: seq[TiNode], relativeImagePath = "Imag
 
 proc AssignCover*(this: Epub3, image: Image, relativePath = "") =
   this.manifest.add GenXMLElementWithAttrs("item", {"id": "cover", "href": "../" & image.name, "media-type": $(image.imageType)})
-  this.spine.add GenXMLElementWithAttrs("itemref", {"idref": "cover"})
-  this.metaData.add GenXMLElementWithAttrs("meta", {"name": "cover", "content": "cover"})
-  AddImage(this, image, relativePath)
+  # Compat issue in spine with non-xhtml components
+  #this.spine.add GenXMLElementWithAttrs("itemref", {"idref": "cover"})
+  this.metaData.add GenXMLElementWithAttrs("meta", {"content": "cover", "name": "cover"})
+  writeFile(this.locationOnDisk / image.name, image.bytes)
 
 proc FinalizeEpub*(this: Epub3) =
   var package = addMultipleNodes(GenXMLElementWithAttrs("package", {"xmlns": "http://www.idpf.org/2007/opf",
