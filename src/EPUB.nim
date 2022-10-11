@@ -12,3 +12,6 @@ import EPUB/[types, EPUB3]
 #  testEpub = CreateEpub3(mdataList, "/mnt/General/work/Programming/EPUB/src/helloCuteWorld")
 #  AddPage(testEpub, GeneratePage("dlrowolleh", @[TiNode(text: "helloWorld")]))
 #  FinalizeEpub(testEpub)
+
+#var tEpub: Epub3 = OpenEpub3("./ID")
+#echo "Can Find Chapter 1? " & $tEpub.CheckPageExistance("Chapter 1")

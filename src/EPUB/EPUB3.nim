@@ -5,6 +5,8 @@ import zippy/ziparchives
 # Based off of https://www.w3.org/publishing/epub3/epub-overview.html#sec-nav
 const xmlHeader: string = "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>"
 type
+  # Raised when there's a problem with the file or file path.
+  FileError = object of Exception
   attr = tuple[key, val: string]
   metaDataList* = tuple[metaType: MetaType, name: string, attrs: seq[attr], text: string]
   Epub3* = ref object
@@ -18,27 +20,47 @@ type
     tableOfContentsNavigator: XmlNode
     fileList: seq[string]
 
+proc raiseFileError(extraMessage: string = "") =
+  raise newException(FileError, "There was a problem with the file " & extraMessage)
+
 proc OpenEpub3*(path: string): Epub3 =
   var epub: Epub3 = Epub3()
-  # Zippy does not work with reading/uncompressing files to memory one at a time with minimal memory impact.
-  var diskPath: string = ""
-  when defined windows:
-    diskPath = ".\\" & path.split('\\')[^1]
-  else:
-    diskPath = "./" & path.split('/')[^1]
-  extractAll(path, diskPath)
-  #https://www.w3.org/publishing/epub3/epub-packages.html#sec-spine-elem
+  var diskPath: string = path
+  if not (fileExists(path) or dirExists(path)):
+    raiseFileError("(Does Not Exist)")
+  if getFileInfo(path).kind == pcFile:
+    # Zippy does not work with reading/uncompressing files to memory one at a time with minimal memory impact.
+    let tmD = join(diskPath.split(".")[0..^1], ".")
+    extractAll(path, tmD)
+    diskPath = tmD
+  elif getFileInfo(path).kind != pcDir:
+    raiseFileError("(Invalid File Type)")
   let metaInf: XmlNode = parseXml(readFile(diskPath / "META-INF" / "container.xml"))
-  # TODO: load opf from container, instead of trying to get an arbitrary directory.
-  let navigator = parseXml(readFile(diskPath / "OPF" / "package.opf"))
-  epub.metaData = navigator.child("metadata")
-  epub.manifest = navigator.child("manifest")
-  epub.spine = navigator.child("spine")
-  for i in epub.spine.items:
-    if i.attr("id") != "toc": continue
-    epub.tableOfContents = parseXml(readFile(diskPath / "OPF" / i.attr("href")))
+  # Possible problems without parsing it on different systems.
+  # TODO: Test on windows/linux machines, respectively.
+  let pkgPath = join((diskPath / metaInf.child("rootfiles").child("rootfile").attr("full-path")).split("/")[0..^2], "/")
+  let opf = parseXml(readFile(diskPath / metaInf.child("rootfiles").child("rootfile").attr("full-path")))
+  epub.metaData = opf.child("metadata")
+  epub.manifest = opf.child("manifest")
+  epub.spine = opf.child("spine")
+  for item in epub.manifest.items:
+    if item.attr("id") != "toc": continue
+    # Will most likely not work under the conditions that the href is "../"
+    epub.tableOfContents = parsexml(readFile(pkgPath / item.attr("href")))
     break
-  # TODO: READ
+  return epub
+  ##https://www.w3.org/publishing/epub3/epub-packages.html#sec-spine-elem
+  #let metaInf: XmlNode = parseXml(readFile(diskPath / "META-INF" / "container.xml"))
+  ## TODO: load opf from container, instead of trying to get an arbitrary directory.
+  #let navigator = parseXml(readFile(diskPath / "OPF" / "package.opf"))
+  #epub.metaData = navigator.child("metadata")
+  #epub.manifest = navigator.child("manifest")
+  #epub.spine = navigator.child("spine")
+  #for i in epub.spine.items:
+  #  if i.attr("id") != "toc": continue
+  #  epub.tableOfContents = parseXml(readFile(diskPath / "OPF" / i.attr("href")))
+  #  break
+  ## TODO: READ
 
 proc CreateEpub3*(metaData: seq[metaDataList], path: string): Epub3 =
   var epub: Epub3 = Epub3()
@@ -84,7 +106,11 @@ proc AddPage*(this: Epub3, page: Page, relativePath = "Pages/") =
   this.tableOfContentsNavigator.add liElA
   writeFile(this.locationOnDisk / "OPF" / relativePath & page.name, xmlHeader & "\n" & page.xhtml)
   inc this.len
-
+proc CheckPageExistance*(this: Epub3, nm: string): bool =
+  for n in this.manifest.items:
+    let name = n.attr("href").split('/')[^1].split('.')[0]
+    if name != nm: continue
+    return true
 # To prevent hogging memory with image files, recommend calling this and unreferencing image bytes after write.
 proc AddImage*(this: Epub3, image: Image, relativePath = "Image/") =
   assert image.name.split('.').len > 1
