@@ -23,6 +23,9 @@ type
 proc raiseFileError(extraMessage: string = "") =
   raise newException(FileError, "There was a problem with the file " & extraMessage)
 
+##https://www.w3.org/publishing/epub3/epub-packages.html#sec-spine-elem
+
+# Opens a valid Epub3 and loads the epub data.
 proc OpenEpub3*(path: string): Epub3 =
   var epub: Epub3 = Epub3()
   var diskPath: string = path
@@ -49,20 +52,36 @@ proc OpenEpub3*(path: string): Epub3 =
     epub.tableOfContents = parsexml(readFile(pkgPath / item.attr("href")))
     break
   return epub
-  ##https://www.w3.org/publishing/epub3/epub-packages.html#sec-spine-elem
-  #let metaInf: XmlNode = parseXml(readFile(diskPath / "META-INF" / "container.xml"))
-  ## TODO: load opf from container, instead of trying to get an arbitrary directory.
-  #let navigator = parseXml(readFile(diskPath / "OPF" / "package.opf"))
-  #epub.metaData = navigator.child("metadata")
-  #epub.manifest = navigator.child("manifest")
-  #epub.spine = navigator.child("spine")
-  #for i in epub.spine.items:
-  #  if i.attr("id") != "toc": continue
-  #  epub.tableOfContents = parseXml(readFile(diskPath / "OPF" / i.attr("href")))
-  #  break
-  ## TODO: READ
 
-proc CreateEpub3*(metaData: seq[metaDataList], path: string): Epub3 =
+# Opens an incomplete Epub3 from animeDL, and reforms it. It must be a folder, not a .epub archive.
+proc OpenEpub3AndRebuild*(metaData: seq[metaDataList], path: string): Epub3 =
+  var epub: Epub3 = CreateEpub3(metaData, path, false)
+  # Rebuild TOC, Manifest.
+  var images: seq[string] = @[]
+  var pages: seq[string] = @[]
+  var osType: bool = defined(windows)
+  for i in walkDir(path / "OPF", true):
+    var ty: seq[string] = @[]
+    if osType:
+      ty = i.path.split('\\')
+    else:
+      ty = i.path.split('/')
+    if i.kind == pcFile:
+      if ty[0] == "Images":
+        images add ty[1]
+        continue
+      if ty[0] == "Pages":
+        pages add ty[1]
+        continue
+  pages = sort(pages)
+  images = sort(images)
+  for i in pages:
+    epb.AddPage(Page(name = i, xhtml = readFile(path / "OPF" / "Pages" / i)), write = false)
+  for i in images:
+    epb.AddPage(Page(name = i, xhtml = readFile(path / "OPF" / "Images" / i)), write = false)
+  
+# Create's a blank Epub3.
+proc CreateEpub3*(metaData: seq[metaDataList], path: string, excp: bool = true): Epub3 =
   var epub: Epub3 = Epub3()
   epub.locationOnDisk = path
   if epub.locationOnDisk[0..1] == "./" or epub.locationOnDisk[0..1] == ".\\":
@@ -87,16 +106,18 @@ proc CreateEpub3*(metaData: seq[metaDataList], path: string): Epub3 =
   epub.spine = GenXMLElementWithAttrs("spine", {"page-progression-direction": "ltr"})
   # Generate TOC, WITHOUT HTML body.
   epub.tableOfContentsNavigator = GenXMLElementWithAttrs("ol", {"epub:type": "list"})
-  # Create default dirs.
-  createDir(path)
-  createDir(path / "META-INF")
-  writeFile(path / "META-INF" / "container.xml", xmlHeader & "\n" & $addMultipleNodes(GenXMLElementWithAttrs("container", {"version": "1.0", "xmlns": "urn:oasis:names:tc:opendocument:xmlns:container"}), @[addMultipleNodes(newElement("rootfiles"), @[GenXMLElementWithAttrs("rootfile", {"full-path": "OPF/package.opf", "media-type": "application/oebps-package+xml"})])]))
-  createDir(path / "OPF")
-  createDir(path / "OPF" / "Pages")
-  createDir(path / "OPF" / "Images")
+  # Create default dirs (if not rebuilding)
+  if excp:
+    createDir(path)
+    createDir(path / "META-INF")
+    writeFile(path / "META-INF" / "container.xml", xmlHeader & "\n" & $addMultipleNodes(GenXMLElementWithAttrs("container", {"version": "1.0", "xmlns": "urn:oasis:names:tc:opendocument:xmlns:container"}), @[addMultipleNodes(newElement("rootfiles"), @[GenXMLElementWithAttrs("rootfile", {"full-path": "OPF/package.opf", "media-type": "application/oebps-package+xml"})])]))
+    createDir(path / "OPF")
+    createDir(path / "OPF" / "Pages")
+    createDir(path / "OPF" / "Images")
   return epub
 
-proc AddPage*(this: Epub3, page: Page, relativePath = "Pages/") =
+# Adds a page to the Epub3 manifest, spine.
+proc AddPage*(this: Epub3, page: Page, relativePath = "Pages/", write: bool = true) =
   this.manifest.add(GenXMLElementWithAttrs("item", {"id": "s" & $this.len, "href": relativePath / page.name, "media-type": "application/xhtml+xml"}))
   this.spine.add(GenXMLElementWithAttrs("itemref", {"idref": "s" & $this.len}))
   var liElA = newElement("li")
@@ -104,8 +125,10 @@ proc AddPage*(this: Epub3, page: Page, relativePath = "Pages/") =
   a.add newText(page.name[0..^7])
   liElA.add a
   this.tableOfContentsNavigator.add liElA
-  writeFile(this.locationOnDisk / "OPF" / relativePath & page.name, xmlHeader & "\n" & page.xhtml)
+  if write:
+    writeFile(this.locationOnDisk / "OPF" / relativePath & page.name, xmlHeader & "\n" & page.xhtml)
   inc this.len
+# Checks if the page exists within the Epub3 directory.
 proc CheckPageExistance*(this: Epub3, nm: string): bool =
   for n in this.manifest.items:
     let name = n.attr("href").split('/')[^1].split('.')[0]
@@ -122,19 +145,19 @@ proc AddImage*(this: Epub3, image: Image, relativePath = "Image/") =
     writeFile(this.locationOnDisk / image.name, image.bytes)
     return
   writeFile(this.locationOnDisk / "OPF" / relativePath & image.name, image.bytes)
-
+# Generate a page from tiNodes.
 proc GeneratePage*(name: string, tiNodes: seq[TiNode], relativeImagePath = "Images/"): Page =
   assert name != ""
   var xhtml: string = xhtmlifyTiNode(tiNodes, name, relativeImagePath)
   return Page(name: name & ".xhtml", xhtml: xhtml)
-
+# Assign a cover to the Epub.
 proc AssignCover*(this: Epub3, image: Image, relativePath = "") =
   this.manifest.add GenXMLElementWithAttrs("item", {"id": "cover", "href": "../" & image.name, "media-type": $(image.imageType)})
   # Compat issue in spine with non-xhtml components
   #this.spine.add GenXMLElementWithAttrs("itemref", {"idref": "cover"})
   this.metaData.add GenXMLElementWithAttrs("meta", {"content": "cover", "name": "cover"})
   writeFile(this.locationOnDisk / image.name, image.bytes)
-
+# Export the epub to the location, which the epub was created.
 proc FinalizeEpub*(this: Epub3) =
   var package = addMultipleNodes(GenXMLElementWithAttrs("package", {"xmlns": "http://www.idpf.org/2007/opf",
     "version": "3.0", "xml:lang": "en", "unique-identifier": "pub-id", "prefix": "rendition: http://www.idpf.org/vocab/rendition/#"}),
