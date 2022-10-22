@@ -39,13 +39,14 @@ proc GetNumInstances*(str: string): seq[int] =
   var numSeq: seq[int] = @[]
   var idx: int = 0
   while idx < str.len:
-    let chr = str[idx]
+    var chr = str[idx]
     var cSeq: string = ""
     while chr >= '0' or chr <= '9' and idx < str.len:
       cSeq = cSeq & chr
       inc idx
       chr = str[idx]
-    numSeq add parseInt(cSeq)
+    let ms = parseInt(cSeq)
+    numSeq.add ms
   return numSeq
 
 proc `>`*(a,b: seq[int]): bool =
@@ -63,14 +64,14 @@ proc `<`*(a,b: seq[int]): bool =
     inc idx
   return b.len > a.len
 
-proc sort(a: seq[string]): seq[string] =
+proc sort*(a: var seq[string]): seq[string] =
   var idx: int = 0
   var idy: int = 0
   var swap: string = ""
   while idx < a.len:
     swap = a[idx]
-    let maverick = GetNumInstances(swap)
-    if maverick < 1: continue
+    var maverick = GetNumInstances(swap)
+    if maverick.len < 1: continue
     while idy < a.len:
       if maverick < GetNumInstances(a[idy]):
         a[idx] = a[idy]

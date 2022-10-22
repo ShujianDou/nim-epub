@@ -52,33 +52,6 @@ proc OpenEpub3*(path: string): Epub3 =
     epub.tableOfContents = parsexml(readFile(pkgPath / item.attr("href")))
     break
   return epub
-
-# Opens an incomplete Epub3 from animeDL, and reforms it. It must be a folder, not a .epub archive.
-proc OpenEpub3AndRebuild*(metaData: seq[metaDataList], path: string): Epub3 =
-  var epub: Epub3 = CreateEpub3(metaData, path, false)
-  # Rebuild TOC, Manifest.
-  var images: seq[string] = @[]
-  var pages: seq[string] = @[]
-  var osType: bool = defined(windows)
-  for i in walkDir(path / "OPF", true):
-    var ty: seq[string] = @[]
-    if osType:
-      ty = i.path.split('\\')
-    else:
-      ty = i.path.split('/')
-    if i.kind == pcFile:
-      if ty[0] == "Images":
-        images add ty[1]
-        continue
-      if ty[0] == "Pages":
-        pages add ty[1]
-        continue
-  pages = sort(pages)
-  images = sort(images)
-  for i in pages:
-    epb.AddPage(Page(name = i, xhtml = readFile(path / "OPF" / "Pages" / i)), write = false)
-  for i in images:
-    epb.AddPage(Page(name = i, xhtml = readFile(path / "OPF" / "Images" / i)), write = false)
   
 # Create's a blank Epub3.
 proc CreateEpub3*(metaData: seq[metaDataList], path: string, excp: bool = true): Epub3 =
@@ -128,6 +101,32 @@ proc AddPage*(this: Epub3, page: Page, relativePath = "Pages/", write: bool = tr
   if write:
     writeFile(this.locationOnDisk / "OPF" / relativePath & page.name, xmlHeader & "\n" & page.xhtml)
   inc this.len
+# Opens an incomplete Epub3 from animeDL, and reforms it. It must be a folder, not a .epub archive.
+proc OpenEpub3AndRebuild*(metaData: seq[metaDataList], path: string): Epub3 =
+  var epub: Epub3 = CreateEpub3(metaData, path, false)
+  # Rebuild TOC, Manifest.
+  var images: seq[string] = @[]
+  var pages: seq[string] = @[]
+  var osType: bool = defined(windows)
+  for i in walkDir(path / "OPF", true):
+    var ty: seq[string] = @[]
+    if osType:
+      ty = i.path.split('\\')
+    else:
+      ty = i.path.split('/')
+    if i.kind == pcFile:
+      if ty[0] == "Images":
+        images.add ty[1]
+        continue
+      if ty[0] == "Pages":
+        pages.add ty[1]
+        continue
+  pages = sort(pages)
+  images = sort(images)
+  for i in pages:
+    epub.AddPage(Page(name: i, xhtml: readFile(path / "OPF" / "Pages" / i)), write = false)
+  for i in images:
+    epub.AddPage(Page(name: i, xhtml: readFile(path / "OPF" / "Images" / i)), write = false)
 # Checks if the page exists within the Epub3 directory.
 proc CheckPageExistance*(this: Epub3, nm: string): bool =
   for n in this.manifest.items:
