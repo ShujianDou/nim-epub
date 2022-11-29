@@ -121,6 +121,8 @@ proc OpenEpub3AndRebuild*(metaData: seq[metaDataList], path: string): Epub3 =
       if ty[0] == "Pages":
         pages.add ty[1]
         continue
+  if pages <= 0 and images <= 0:
+    raiseFileError("No content")
   pages = sort(pages)
   images = sort(images)
   for i in pages:
@@ -129,6 +131,8 @@ proc OpenEpub3AndRebuild*(metaData: seq[metaDataList], path: string): Epub3 =
     epub.AddPage(Page(name: i, xhtml: readFile(path / "OPF" / "Images" / i)), write = false)
 # Checks if the page exists within the Epub3 directory.
 proc CheckPageExistance*(this: Epub3, nm: string): bool =
+  if this.manifest.items == nil or this.manifest.items.len <= 0:
+    return false
   for n in this.manifest.items:
     let name = n.attr("href").split('/')[^1].split('.')[0]
     if name != nm: continue
