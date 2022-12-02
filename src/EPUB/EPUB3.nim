@@ -1,4 +1,4 @@
-import std/[xmlparser, parsexml, xmltree, os, strutils, strtabs, enumutils]
+import std/[xmlparser, parsexml, xmltree, os, strutils, strtabs, enumutils, sequtils]
 import ./types, ./genericHelpers
 import zippy/ziparchives
 
@@ -109,30 +109,18 @@ proc OpenEpub3AndRebuild*(metaData: seq[metaDataList], path: string): Epub3 =
   var pages: seq[string] = @[]
   var osType: bool = defined(windows)
   for i in walkDir(path / "OPF", true):
-    var ty: seq[string] = @[]
-    if osType:
-      ty = i.path.split('\\')
-    else:
-      ty = i.path.split('/')
-    if i.kind == pcFile:
-      if ty[0] == "Images":
-        images.add ty[1]
-        continue
-      if ty[0] == "Pages":
-        pages.add ty[1]
-        continue
-  if pages <= 0 and images <= 0:
+    if i.path == "Pages":
+      for page in walkDir(path / "OPF" / "Pages"):
+        pages.add page.path
+  if pages.len <= 0 and images.len <= 0:
     raiseFileError("No content")
   pages = sort(pages)
   images = sort(images)
   for i in pages:
-    epub.AddPage(Page(name: i, xhtml: readFile(path / "OPF" / "Pages" / i)), write = false)
-  for i in images:
-    epub.AddPage(Page(name: i, xhtml: readFile(path / "OPF" / "Images" / i)), write = false)
+    epub.AddPage(Page(name: i.split('/')[^1], xhtml: readFile(i)), write = false)
+  return epub
 # Checks if the page exists within the Epub3 directory.
 proc CheckPageExistance*(this: Epub3, nm: string): bool =
-  if this.manifest.items == nil or this.manifest.items.len <= 0:
-    return false
   for n in this.manifest.items:
     let name = n.attr("href").split('/')[^1].split('.')[0]
     if name != nm: continue

@@ -41,12 +41,14 @@ proc GetNumInstances*(str: string): seq[int] =
   while idx < str.len:
     var chr = str[idx]
     var cSeq: string = ""
-    while chr >= '0' or chr <= '9' and idx < str.len:
+    while isDigit(chr) and idx < str.len:
       cSeq = cSeq & chr
       inc idx
       chr = str[idx]
-    let ms = parseInt(cSeq)
-    numSeq.add ms
+    inc idx
+    if cSeq.len > 0:
+      let ms = parseInt(cSeq)
+      numSeq.add ms
   return numSeq
 
 proc `>`*(a,b: seq[int]): bool =
@@ -80,3 +82,4 @@ proc sort*(a: var seq[string]): seq[string] =
       inc idy
     idy = 0
     inc idx
+  return a
