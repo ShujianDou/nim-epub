@@ -148,6 +148,13 @@ proc AssignCover*(this: Epub3, image: Image, relativePath = "") =
   #this.spine.add GenXMLElementWithAttrs("itemref", {"idref": "cover"})
   this.metaData.add GenXMLElementWithAttrs("meta", {"content": "cover", "name": "cover"})
   writeFile(this.locationOnDisk / image.name, image.bytes)
+proc AddGenPage*(this: Epub3, name: string, tiNodes: seq[TiNode]) =
+  AddPage(this, GeneratePage(name, tiNodes))
+  for node in tiNodes:
+    if node.images == nil or node.images.len == 0:
+      break
+    for image in node.images:
+      AddImage(this, image)
 # Export the epub to the location, which the epub was created.
 proc FinalizeEpub*(this: Epub3) =
   var package = addMultipleNodes(GenXMLElementWithAttrs("package", {"xmlns": "http://www.idpf.org/2007/opf",
