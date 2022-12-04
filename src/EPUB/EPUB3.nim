@@ -114,8 +114,8 @@ proc OpenEpub3AndRebuild*(metaData: seq[metaDataList], path: string): Epub3 =
         pages.add page.path
   if pages.len <= 0 and images.len <= 0:
     raiseFileError("No content")
-  pages = sort(pages)
-  images = sort(images)
+  #pages = sort(pages)
+  #images = sort(images)
   for i in pages:
     epub.AddPage(Page(name: i.split('/')[^1], xhtml: readFile(i)), write = false)
   return epub
@@ -151,7 +151,7 @@ proc AssignCover*(this: Epub3, image: Image, relativePath = "") =
 proc AddGenPage*(this: Epub3, name: string, tiNodes: seq[TiNode]) =
   AddPage(this, GeneratePage(name, tiNodes))
   for node in tiNodes:
-    if node.images == nil or node.images.len == 0:
+    if node.images.len == 0:
       break
     for image in node.images:
       AddImage(this, image)
