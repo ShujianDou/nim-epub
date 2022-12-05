@@ -128,7 +128,7 @@ proc CheckPageExistance*(this: Epub3, nm: string): bool =
 # To prevent hogging memory with image files, recommend calling this and unreferencing image bytes after write.
 proc AddImage*(this: Epub3, image: Image, relativePath = "Images/") =
   assert image.name.split('.').len > 1
-  this.manifest.add GenXMLElementWithAttrs("item", {"id": "s" & $this.len, "href": relativePath / image.name, "media-type": $(image.imageType)})
+  this.manifest.add GenXMLElementWithAttrs("item", {"id": "s" & $this.len, "src": relativePath / image.name, "media-type": $(image.imageType)})
   # Compat issue in spine with non-xhtml components
   #this.spine.add GenXMLElementWithAttrs("itemref", {"idref": "s" & $this.len})
   inc this.len
