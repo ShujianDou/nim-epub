@@ -156,7 +156,7 @@ proc AddGenPage*(this: Epub3, name: string, tiNodes: seq[TiNode]) =
     for image in node.images:
       AddImage(this, image)
 # Export the epub to the location, which the epub was created.
-proc FinalizeEpub*(this: Epub3) =
+proc FinalizeEpub*(this: Epub3, skipDeletion: bool = false) =
   var package = addMultipleNodes(GenXMLElementWithAttrs("package", {"xmlns": "http://www.idpf.org/2007/opf",
     "version": "3.0", "xml:lang": "en", "unique-identifier": "pub-id", "prefix": "rendition: http://www.idpf.org/vocab/rendition/#"}),
     @[this.metaData, this.manifest, this.spine])
@@ -166,5 +166,6 @@ proc FinalizeEpub*(this: Epub3) =
   writeFile(this.locationOnDisk / "OPF" / "TOC.xhtml", xmlHeader & "\n" & $this.tableOfContents)
   this.tableOfContents = nil
   createZipArchive(this.locationOnDisk & "/", this.locationOnDisk[0..^2] & ".epub")
-  removeDir(this.locationOnDisk)
+  if skipDeletion == false:
+    removeDir(this.locationOnDisk)
 
