@@ -1,7 +1,7 @@
 import std/[xmlparser, parsexml, xmltree, os, strutils, strtabs, enumutils, sequtils]
 import zippy/ziparchives
 import ./types, ./genericHelpers
-export ./types
+export types
 
 # Based off of https://www.w3.org/publishing/epub3/epub-overview.html#sec-nav
 const xmlHeader: string = "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>"
