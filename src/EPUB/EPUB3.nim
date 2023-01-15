@@ -1,6 +1,7 @@
 import std/[xmlparser, parsexml, xmltree, os, strutils, strtabs, enumutils, sequtils]
-import ./types, ./genericHelpers
 import zippy/ziparchives
+import ./types, ./genericHelpers
+export ./types
 
 # Based off of https://www.w3.org/publishing/epub3/epub-overview.html#sec-nav
 const xmlHeader: string = "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>"
@@ -39,8 +40,6 @@ proc OpenEpub3*(path: string): Epub3 =
   elif getFileInfo(path).kind != pcDir:
     raiseFileError("(Invalid File Type)")
   let metaInf: XmlNode = parseXml(readFile(diskPath / "META-INF" / "container.xml"))
-  # Possible problems without parsing it on different systems.
-  # TODO: Test on windows/linux machines, respectively.
   let pkgPath = join((diskPath / metaInf.child("rootfiles").child("rootfile").attr("full-path")).split("/")[0..^2], "/")
   let opf = parseXml(readFile(diskPath / metaInf.child("rootfiles").child("rootfile").attr("full-path")))
   epub.metaData = opf.child("metadata")
@@ -155,6 +154,8 @@ proc AddGenPage*(this: Epub3, name: string, tiNodes: seq[TiNode]) =
       break
     for image in node.images:
       AddImage(this, image)
+proc AddVolume*(this: Epub3, volume: Volume) =
+  discard
 # Export the epub to the location, which the epub was created.
 proc FinalizeEpub*(this: Epub3, skipDeletion: bool = false) =
   var package = addMultipleNodes(GenXMLElementWithAttrs("package", {"xmlns": "http://www.idpf.org/2007/opf",

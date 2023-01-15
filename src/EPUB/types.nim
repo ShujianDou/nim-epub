@@ -22,3 +22,6 @@ type
   Page* = ref object
     name*: string
     xhtml*: string
+  Volume = ref object
+    name*: string
+    pages*: seq[Page]
