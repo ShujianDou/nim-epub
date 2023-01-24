@@ -25,3 +25,9 @@ type
   Volume* = ref object
     name*: string
     pages*: seq[Page]
+
+proc `$`*(t: seq[TiNode]): string =
+  var stringBuilder = ""
+  for node in t:
+    stringBuilder.add (node.text & "\n")
+  return stringBuilder
