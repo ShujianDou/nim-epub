@@ -1,13 +1,8 @@
-# Package
-
-version       = "0.2.1"
+version       = "0.3.0"
 author        = "ShujianDou"
-description   = "Library for accessing and creating EPUBs"
-license       = "Apache"
+description   = "An EPUB management library for opening, manipulating, and creating epubs."
+license       = "MIT"
 srcDir        = "src"
 
-
-# Dependencies
-
-requires "nim >= 1.6.6"
-requires "zippy"
+requires "nim >= 1.6.13"
+requires "https://github.com/vrienstudios/zippy"
