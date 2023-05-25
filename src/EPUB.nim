@@ -61,22 +61,38 @@ type
     title*: string
     nodes*: seq[TiNode]
   Epub3* = ref object
+    isExporting: bool
     len*: int
     path*: string
     packageDir*: string
+    defaultPageHref*: string
     rootFile*: tuple[fullPath: string, mediaType: NodeKind]
     packageHeader*: TiNode
     metaData*: seq[EpubMetaData]
     manifest*: seq[EpubItem]
     spine*: tuple[propertyAttr: XmlAttributes, refItems: seq[EpubRefItem]]
     navigation*: Nav
+    referencedImages*: seq[Image]
 
-proc `$`*(node: TiNode): string =
+proc taggifyNode*(node: TiNode): string =
+  case node.kind:
+    of NodeKind.ximage:
+      return "<img src=" & node.image.path & ">"
+    else:
+      return "<{1}>{2}</{3}>" % [$node.kind, node.text, $node.kind]
+  
+proc `$`*(node: TiNode, htmlify: bool = false): string =
   var stringBuilder: string
-  stringBuilder.add node.text
-  for n in node.children:
-    stringBuilder.add "\n" & $n
-  return stringBuilder
+  if not htmlify:
+    var stringBuilder: string
+    stringBuilder.add node.text
+    for n in node.children:
+      stringBuilder.add "\n" & $n
+    return stringBuilder
+  stringBuilder.add taggifyNode(node)
+  for i in node.children:
+    stringBuilder.add taggifyNode(i) & "\n"
+  
 proc mediaTypeLookUp(str: string): NodeKind =
   for e in NodeKind.items:
     if $e == str:
@@ -144,6 +160,10 @@ proc LoadEpubFromDir*(path: string): Epub3 =
   epub.packageHeader = loadPackage(packageXmlNode)
   epub.metaData = loadMetaData(packageXmlNode.child("metadata"))
   epub.manifest = loadManifest(packageXmlNode.child("manifest"))
+  for item in epub.manifest:
+    if item.mediaType == NodeKind.xhtmlXml:
+      epub.defaultPageHref = join(item.href.split('/')[0..^1])
+      break
   epub.spine = loadSpine(packageXmlNode.child("spine"))
   
   result = epub
@@ -194,7 +214,6 @@ proc parseTOCElements*(node: XmlNode, gName: string = "volume"): TiNode =
     inc idx
   return mNode
     
-    
 # Loads the NAV object in to the Epub, returns nothing.
 #   The NAV object has a list of TiNodes, which is in the order/format--
 #     that pages should be displayed.
@@ -240,6 +259,9 @@ proc iteratePageForNodesEx*(node: XmlNode): seq[TiNode] =
     allNodes.add iteratePageForNodesEx(c)
   return allNodes
 
+# Generate a full .xhtml page to write to disk or to a zip file in memory.
+proc GeneratePageXhtml*(epb: Epub3, page: Page): string =
+  discard
 
 # Building with detailedNodes on will (eventually) create a lot more nodes than it will now.
 # By default, this will only grab the full text on a page (until it's interrupted by an image or another element)
@@ -251,15 +273,70 @@ proc GetPageFromNode*(epb: Epub3, node: TiNode, buildDetailedNodes: bool = false
   page.nodes = iteratePageForNodesEx(pageText)
   result = page
   
-
 # This sets the default values for rootFile and packageHeader for epub.
-proc CreateNewEpub*(title: string): Epub3 =
+#   It also creates a directory to store images, if desired.
+proc CreateNewEpub*(title: string, diskPath: string = ""): Epub3 =
   var epb: Epub3 = Epub3()
+  epb.path = diskPath
   # Set epub defautls-- e.g rootFile and packageHeader
   epb.rootFile = ("OPF/package.opf", NodeKind.oebps)
   epb.packageHeader = TiNode(kind: NodeKind.package, attrs: {"version": "3.0", "prefix": "rendition: http://www.idpf.org/vocab/rendition/#",
     "xml:lang": "en", "xmlns": "http://www.idpf.org/2007/opf"}.toXmlAttributes())
+  epb.navigation = Nav(title: title)
+  epb.defaultPageHref = "Pages/"
   result = epb
+
+# These will clear text and children TiNodes upon being written if isExporting is true.
+proc AddPage*(epub: Epub3, page: Page, nNav: bool = true) =
+  let id: string = "s" & $len(epub.manifest)
+  epub.manifest.add EpubItem(id: id, href: epub.defaultPageHref / page.name & ".xhtml",
+    mediaType: NodeKind.xhtmlXml)
+  epub.spine.refItems.add EpubRefItem(id: id)
+  if nNav:
+    epub.navigation.nodes.add TiNode(kind: NodeKind.pageSect, text: page.name, 
+      attrs: {"href": epub.defaultPageHref / page.name & ".xhtml"}.toXmlAttributes())
+  # Clear all nodes in page after writing to disk.
+  if epub.isExporting == true:
+    let xhtml = GeneratePageXhtml(epub, page)
+    page.nodes = @[]
+    writeFile(epub.path / "OPF" / "Pages" / page.name & ".xhtml", xhtml)
+proc AddVolume*(epub: Epub3, volume: Volume) =
+  var volumeNode = TiNode(kind: NodeKind.vol, text: volume.name)
+  for page in volume.pages:
+    AddPage(epub, page, false)
+    volumeNode.children.add TiNode(kind: NodeKind.pageSect, text: page.name, 
+      attrs: {"href": epub.defaultPageHref / page.name & ".xhtml"}.toXmlAttributes())
+  epub.navigation.nodes.add volumeNode
+
+# To save on memory, we don't want to keep image data in memory. 
+#   So, currently, we should save images on disk for ease of use.
+#   You must reference these images by calling this func with the path name as the path variable.
+proc ReferenceImage*(epub: Epub3, image: Image) =
+  discard
+# Add an image with data as its path.
+# (IMPORTANT): path/OPF/Images *MUST* be created before calling this function
+proc AddImageRaw*(epub: Epub3, image: Image) =
+  assert epub.isExporting == true
+  discard
+# Call this to create all needed directories to write files to
+#   This allows you to call AddImageRaw to add images to the file structure without adding them after zipping.
+proc BeginEpubExport*(epub: Epub3) =
+  createDir(epub.path)
+  createDir(epub.path / "META-INF")
+  createDir(epub.path / "OPF")
+  createDir(epub.path / "OPF" / "Pages")
+  createDir(epub.path / "OPF" / "Images")
+  epub.isExporting = true
+
+proc WriteEpub*(epub: Epub3, path: string) =
+  if epub.isExporting == false:
+    createDir(epub.path)
+    createDir(epub.path / "META-INF")
+    createDir(epub.path / "OPF")
+    createDir(epub.path / "OPF" / "Pages")
+    createDir(epub.path / "OPF" / "Images")
+  
+
 
 #var l = LoadEpubFromDir("./ID")
 #loadTOC(l)
