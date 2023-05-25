@@ -71,7 +71,12 @@ type
     spine*: tuple[propertyAttr: XmlAttributes, refItems: seq[EpubRefItem]]
     navigation*: Nav
 
-
+proc `$`*(node: TiNode): string =
+  var stringBuilder: string
+  stringBuilder.add node.text
+  for n in node.children:
+    stringBuilder.add "\n" & $n
+  return stringBuilder
 proc mediaTypeLookUp(str: string): NodeKind =
   for e in NodeKind.items:
     if $e == str:
@@ -154,14 +159,14 @@ proc LoadEpubFile*(path: string): Epub3 =
   result = LoadEpubFromDir(tempPath)
 
 # https://www.w3.org/publishing/epub3/epub-packages.html#sec-package-nav-def-types-other
-proc parseTOCElements*(node: XmlNode, gName: string = ""): TiNode =
+proc parseTOCElements*(node: XmlNode, gName: string = "volume"): TiNode =
   var mNode = TiNode(kind: vol, text: gName, children: @[])
   let itemSeq = node.items.toSeq()
   var idx: int = 0
   while idx < itemSeq.len:
     let cNode = itemSeq[idx]
     if cNode.kind != xnElement:
-      inc idxs
+      inc idx
       continue
     # Use recursion in the case of a span tag, since it denotes objects underneath it.
     if cNode.tag == "span":
@@ -212,12 +217,53 @@ proc loadTOC*(epub: var Epub3) =
       continue
     lis.add parseTOCElements(olElement)
   navObj.nodes = lis
-  result = navObj
+  epub.navigation = navObj
 #    var b = parseTOCElements(olElement)
 #    echo b.text
 #    for child in b.children:
 #      echo "---[" & child.text & "]" 
 
+# Grabs all nodes in a sequential manner, all children are assimilated
+#   We will only grab <p> and <img> tags for now.
+proc iteratePageForNodesEx*(node: XmlNode): seq[TiNode] =
+  var allNodes: seq[TiNode]
+  for c in node.items:
+    if c.kind != xnElement:
+      continue
+    if c.tag == "p":
+      allNodes.add TiNode(kind: NodeKind.paragraph, text: c.innerText)
+      continue
+    if c.tag == "img":
+      # Not too sure that 'src' is the correct one here.
+      allNodes.add TiNode(kind: NodeKind.ximage, image: Image(path: c.attr("src")))
+      continue
+    allNodes.add iteratePageForNodesEx(c)
+  return allNodes
+
+
+# Building with detailedNodes on will (eventually) create a lot more nodes than it will now.
+# By default, this will only grab the full text on a page (until it's interrupted by an image or another element)
+proc GetPageFromNode*(epb: Epub3, node: TiNode, buildDetailedNodes: bool = false): Page =
+  let nodeHref = node.attrs["href"]
+  assert fileExists(epb.path / epb.packageDir / nodeHref)
+  var page: Page = Page(name: node.text)
+  let pageText = parseHtml(readFile(epb.path / epb.packageDir / nodeHref))
+  page.nodes = iteratePageForNodesEx(pageText)
+  result = page
+  
+
+# This sets the default values for rootFile and packageHeader for epub.
+proc CreateNewEpub*(title: string): Epub3 =
+  var epb: Epub3 = Epub3()
+  # Set epub defautls-- e.g rootFile and packageHeader
+  epb.rootFile = ("OPF/package.opf", NodeKind.oebps)
+  epb.packageHeader = TiNode(kind: NodeKind.package, attrs: {"version": "3.0", "prefix": "rendition: http://www.idpf.org/vocab/rendition/#",
+    "xml:lang": "en", "xmlns": "http://www.idpf.org/2007/opf"}.toXmlAttributes())
+  result = epb
 
 #var l = LoadEpubFromDir("./ID")
 #loadTOC(l)
+
+#let node = l.navigation.nodes[0].children[0]
+#let n = GetPageFromNode(l, node)
+#echo $n.nodes
