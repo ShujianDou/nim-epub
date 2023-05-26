@@ -53,6 +53,7 @@ type
     text*: string
   Page* = ref object
     name*: string
+    built*: string
     nodes*: seq[TiNode]
   Volume* = ref object
     name*: string
@@ -77,7 +78,7 @@ type
 proc taggifyNode*(node: TiNode): string =
   case node.kind:
     of NodeKind.ximage:
-      return "<img src=" & node.image.path & ">"
+      return "<img src=" & "Images" / node.image.fileName & ">"
     else:
       return "<{1}>{2}</{3}>" % [$node.kind, node.text, $node.kind]
   
@@ -259,9 +260,27 @@ proc iteratePageForNodesEx*(node: XmlNode): seq[TiNode] =
     allNodes.add iteratePageForNodesEx(c)
   return allNodes
 
-# Generate a full .xhtml page to write to disk or to a zip file in memory.
-proc GeneratePageXhtml*(epb: Epub3, page: Page): string =
-  discard
+# Generate a full .xhtml page and writes it to Page.built
+proc build*(var page: Page) =
+  var nodeBuilder: XmlNode
+  var htmlV: XmlNode = newElement("html")
+  htmlV.attrs = {"xmlns:epub": "http://www.idpf.org/2007/ops", "xmlns": "http://www.w3.org/1999/xhtml"}.toXmlAttributes()
+  block buildHead:
+    var head: XmlNode = newElement("head")
+    var m = newElement("meta")
+    var title: XmlNode = newElement("title")
+    m.attrs = {"content": "text/html", "http-equiv": "default-style"}.toXmlAttributes()
+    title.add newText(page.name)
+    head.add m
+    head.add title
+    htmlV.add head
+  block buildBody:
+    var body: XmlNode = newElement("body")
+    let taggedNodes = taggifyNode(page.nodes)
+    for textItem in taggedNodes:
+      body.add parseHtml(textItem)
+    htmlV.add body
+  page.built = $htmlV
 
 # Building with detailedNodes on will (eventually) create a lot more nodes than it will now.
 # By default, this will only grab the full text on a page (until it's interrupted by an image or another element)
@@ -287,7 +306,7 @@ proc CreateNewEpub*(title: string, diskPath: string = ""): Epub3 =
   result = epb
 
 # These will clear text and children TiNodes upon being written if isExporting is true.
-proc AddPage*(epub: Epub3, page: Page, nNav: bool = true) =
+proc add*(epub: Epub3, page: Page, nNav: bool = true) =
   let id: string = "s" & $len(epub.manifest)
   epub.manifest.add EpubItem(id: id, href: epub.defaultPageHref / page.name & ".xhtml",
     mediaType: NodeKind.xhtmlXml)
@@ -297,27 +316,26 @@ proc AddPage*(epub: Epub3, page: Page, nNav: bool = true) =
       attrs: {"href": epub.defaultPageHref / page.name & ".xhtml"}.toXmlAttributes())
   # Clear all nodes in page after writing to disk.
   if epub.isExporting == true:
-    let xhtml = GeneratePageXhtml(epub, page)
+    let xhtml = page.build()
     page.nodes = @[]
-    writeFile(epub.path / "OPF" / "Pages" / page.name & ".xhtml", xhtml)
-proc AddVolume*(epub: Epub3, volume: Volume) =
+    writeFile(epub.path / "OPF" / epub.defaultPageHref / page.name & ".xhtml", xhtml)
+proc add*(epub: Epub3, volume: Volume) =
   var volumeNode = TiNode(kind: NodeKind.vol, text: volume.name)
   for page in volume.pages:
-    AddPage(epub, page, false)
-    volumeNode.children.add TiNode(kind: NodeKind.pageSect, text: page.name, 
-      attrs: {"href": epub.defaultPageHref / page.name & ".xhtml"}.toXmlAttributes())
+    epub.add(page, false)
+    let pageSect: TiNode = TiNode(kind: NodeKind.pageSect, text: page.name, 
+      attrs: {"href": epub.defaultPageHref / page.name & ".xhtml", children: page.nodes}.toXmlAttributes())
+    volumeNode.children.add pageSect
   epub.navigation.nodes.add volumeNode
+# Write an image to disk, if you didn't set path as base64 image data.
+proc add*(epub: Epub3, img: Image, realFile: bool = true) =
+  assert epub.isExporting
+  if realFile:
+    copyFile(img.path, epub.path / "OPF" / "Images" / img.fileName)
+    return
+  writeFile(epub.path / "OPF" / "Images" / img.fileName, img.path)
 
-# To save on memory, we don't want to keep image data in memory. 
-#   So, currently, we should save images on disk for ease of use.
-#   You must reference these images by calling this func with the path name as the path variable.
-proc ReferenceImage*(epub: Epub3, image: Image) =
-  discard
-# Add an image with data as its path.
-# (IMPORTANT): path/OPF/Images *MUST* be created before calling this function
-proc AddImageRaw*(epub: Epub3, image: Image) =
-  assert epub.isExporting == true
-  discard
+
 # Call this to create all needed directories to write files to
 #   This allows you to call AddImageRaw to add images to the file structure without adding them after zipping.
 proc BeginEpubExport*(epub: Epub3) =
