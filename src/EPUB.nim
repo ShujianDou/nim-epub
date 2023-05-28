@@ -73,15 +73,44 @@ type
     manifest*: seq[EpubItem]
     spine*: tuple[propertyAttr: XmlAttributes, refItems: seq[EpubRefItem]]
     navigation*: Nav
+    pages*: seq[Page]
     referencedImages*: seq[Image]
 
+proc GenXMLElementWithAttrs(tag: string, t: varargs[tuple[key, val: string]]): XmlNode =
+  var item: XmlNode = newElement(tag)
+  item.attrs = t.toXmlAttributes
+  return item
+proc GenXMLElementWithAttrs(tag: string, t: XmlAttributes): XmlNode =
+  var item: XmlNode = newElement(tag)
+  item.attrs = t
+  return item
+proc addMultipleNodes(host: XmlNode, nodes: seq[XmlNode]): XmlNode =
+  for n in nodes:
+    host.add n
+  return host
 proc taggifyNode*(node: TiNode): string =
   case node.kind:
     of NodeKind.ximage:
       return "<img src=" & "Images" / node.image.fileName & ">"
     else:
       return "<{1}>{2}</{3}>" % [$node.kind, node.text, $node.kind]
-  
+converter toXmlNode(e: EpubMetaData): XmlNode =
+  if e.metaType == MetaType.dc:
+    return addMultipleNodes(GenXMLElementWithAttrs(($e.metaType & ":" & e.name), e.attrs), @[newText(e.text)])
+  return addMultipleNodes(GenXMLElementWithAttrs(($e.metaType), e.attrs), @[newText(e.text)])
+converter toXmlNode(e: EpubItem): XmlNode =
+  return GenXMLElementWithAttrs("item", {"id": e.id, "href": e.href, "media-type": $e.mediaType, "properties": e.properties})
+converter toXmlNode(e: EpubRefItem): XmlNode =
+  return GenXMLElementWithAttrs("itemref", {"idref": e.id, "linear": if e.linear == "": "no" else: e.linear})
+converter toXmlNode(e: Page): XmlNode =
+  return addMultipleNodes(newElement("li"), @[addMultipleNodes(newElement("a"), @[newText(e.name)])])
+converter toXmlNode(e: Volume): XmlNode =
+  discard # TODO
+converter toXmlNode(e: seq[EpubItem | EpubMetaData | EpubRefItem | Page | Volume]): seq[XmlNode] =
+  var temp: seq[XmlNode] = @[]
+  for n in e:
+    temp.add n.toXmlNode()
+  return temp
 proc `$`*(node: TiNode, htmlify: bool = false): string =
   var stringBuilder: string
   if not htmlify:
@@ -237,6 +266,7 @@ proc loadTOC*(epub: var Epub3) =
       continue
     lis.add parseTOCElements(olElement)
   navObj.nodes = lis
+  epub.len = len(lis)
   epub.navigation = navObj
 #    var b = parseTOCElements(olElement)
 #    echo b.text
@@ -261,8 +291,7 @@ proc iteratePageForNodesEx*(node: XmlNode): seq[TiNode] =
   return allNodes
 
 # Generate a full .xhtml page and writes it to Page.built
-proc build*(var page: Page) =
-  var nodeBuilder: XmlNode
+proc build*(page: Page) =
   var htmlV: XmlNode = newElement("html")
   htmlV.attrs = {"xmlns:epub": "http://www.idpf.org/2007/ops", "xmlns": "http://www.w3.org/1999/xhtml"}.toXmlAttributes()
   block buildHead:
@@ -276,8 +305,8 @@ proc build*(var page: Page) =
     htmlV.add head
   block buildBody:
     var body: XmlNode = newElement("body")
-    let taggedNodes = taggifyNode(page.nodes)
-    for textItem in taggedNodes:
+    for n in page.nodes:
+      let textItem = taggifyNode(n)
       body.add parseHtml(textItem)
     htmlV.add body
   page.built = $htmlV
@@ -305,7 +334,7 @@ proc CreateNewEpub*(title: string, diskPath: string = ""): Epub3 =
   epb.defaultPageHref = "Pages/"
   result = epb
 
-# These will clear text and children TiNodes upon being written if isExporting is true.
+# Will automatically export the page to filePath if isExporting = true.
 proc add*(epub: Epub3, page: Page, nNav: bool = true) =
   let id: string = "s" & $len(epub.manifest)
   epub.manifest.add EpubItem(id: id, href: epub.defaultPageHref / page.name & ".xhtml",
@@ -314,46 +343,83 @@ proc add*(epub: Epub3, page: Page, nNav: bool = true) =
   if nNav:
     epub.navigation.nodes.add TiNode(kind: NodeKind.pageSect, text: page.name, 
       attrs: {"href": epub.defaultPageHref / page.name & ".xhtml"}.toXmlAttributes())
+    inc epub.len
   # Clear all nodes in page after writing to disk.
   if epub.isExporting == true:
-    let xhtml = page.build()
-    page.nodes = @[]
-    writeFile(epub.path / "OPF" / epub.defaultPageHref / page.name & ".xhtml", xhtml)
+    page.build()
+    #page.nodes = @[] Let lib user clear or delete nodes after adding.
+    writeFile(epub.path / epub.packageDir / epub.defaultPageHref / page.name & ".xhtml", page.built)
 proc add*(epub: Epub3, volume: Volume) =
   var volumeNode = TiNode(kind: NodeKind.vol, text: volume.name)
   for page in volume.pages:
     epub.add(page, false)
     let pageSect: TiNode = TiNode(kind: NodeKind.pageSect, text: page.name, 
-      attrs: {"href": epub.defaultPageHref / page.name & ".xhtml", children: page.nodes}.toXmlAttributes())
+      attrs: {"href": epub.defaultPageHref / page.name & ".xhtml"}.toXmlAttributes(), children: page.nodes)
     volumeNode.children.add pageSect
   epub.navigation.nodes.add volumeNode
 # Write an image to disk, if you didn't set path as base64 image data.
-proc add*(epub: Epub3, img: Image, realFile: bool = true) =
-  assert epub.isExporting
+proc add*(epub: Epub3, img: Image, realFile: bool = false) =
   if realFile:
-    copyFile(img.path, epub.path / "OPF" / "Images" / img.fileName)
+    epub.referencedImages.add img
     return
-  writeFile(epub.path / "OPF" / "Images" / img.fileName, img.path)
-
+  assert epub.isExporting
+  writeFile(epub.path / epub.packageDir / "Images" / img.fileName, img.path)
+proc add*(epub: Epub3, fileName: string, kind: ImageKind, path: string, realFile: bool) =
+  add(epub, Image(fileName: fileName, kind: kind, path: path), realFile)
 
 # Call this to create all needed directories to write files to
 #   This allows you to call AddImageRaw to add images to the file structure without adding them after zipping.
 proc BeginEpubExport*(epub: Epub3) =
   createDir(epub.path)
   createDir(epub.path / "META-INF")
-  createDir(epub.path / "OPF")
-  createDir(epub.path / "OPF" / "Pages")
-  createDir(epub.path / "OPF" / "Images")
+  createDir(epub.path / epub.packageDir)
+  createDir(epub.path / epub.packageDir / epub.defaultPageHref)
+  createDir(epub.path / epub.packageDir / "Images")
   epub.isExporting = true
 
 proc WriteEpub*(epub: Epub3, path: string) =
   if epub.isExporting == false:
     createDir(epub.path)
     createDir(epub.path / "META-INF")
-    createDir(epub.path / "OPF")
-    createDir(epub.path / "OPF" / "Pages")
-    createDir(epub.path / "OPF" / "Images")
-  
+    createDir(epub.path / epub.packageDir)
+    createDir(epub.path / epub.packageDir / epub.defaultPageHref)
+    createDir(epub.path / epub.packageDir / "Images")
+    for img in epub.referencedImages:
+      # Default epub path for images-- maybe swap later.
+      copyFile(img.path, epub.path / epub.packageDir / "Images" / img.fileName)
+  for page in epub.pages:
+    if page.built == "":
+      page.build()
+      writeFile(epub.path / epub.packageDir / epub.defaultPageHref / page.name & ".xhtml", page.built)
+
+  block building:
+    # Build the package, manifest, meta, etc...
+    block buildRootContainer:
+      var container: XmlNode = newElement("container")
+      container.attrs = {"version": "1.0", "xmlns": "urn:oasis:names:tc:opendocument:xmlns:container"}.toXmlAttributes()
+      var mrootfiles: XmlNode = newElement("rootfile")
+      mrootfiles.attrs = {"full-path": epub.rootFile.fullPath, "media-type": $epub.rootFile.mediaType}.toXmlAttributes()
+      var fileContain: XmlNode = newElement("rootfiles")
+      fileContain.add mrootfiles
+      container.add fileContain
+      writeFile(epub.path / "META-INF" / "container.xml", $container)
+    block buildOPF:
+      var packageOPF: XmlNode = GenXMLElementWithAttrs("package", epub.packageHeader.attrs)
+      let mData = addMultipleNodes(GenXMLElementWithAttrs("metadata",
+        {"xmlns:dc": "http://purl.org/dc/elements/1.1/"}), epub.metaData)
+      let spine = addMultipleNodes(GenXMLElementWithAttrs("spine", epub.spine.propertyAttr), epub.spine.refItems)
+      discard addMultipleNodes(packageOPF, @[mData, spine])
+      writeFile(epub.path / epub.rootFile.fullPath, $packageOPF)
+    block buildingTOC:
+      var toc: XmlNode = GenXMLElementWithAttrs("html", {"xmlns:epub": "http://www.idpf.org/2007/ops", "xmlns": "http://www.w3.org/1999/xhtml"})
+      let head: XmlNode = addMultipleNodes(newElement("head"), 
+        @[GenXMLElementWithAttrs("meta", {"content": "text/html; charset=utf-8", "http-equiv": "default-style"}),
+          addMultipleNodes(newElement("title"), @[newText(epub.navigation.title)])])
+      
+      var navElement: XmlNode = addMultipleNodes(GenXMLElementWithAttrs("nav", {"epub:type": "toc"}),
+        @[addMultipleNodes(newElement("h2"), @[newText("Contents")])])
+      var elementList: XmlNode = addMultipleNodes(GenXMLElementWithAttrs("ol", {"epub:type": "list"}),
+        epub.pages)
 
 
 #var l = LoadEpubFromDir("./ID")
