@@ -276,7 +276,8 @@ proc parseTOCElements*(epub: Epub3, node: XmlNode, gName: string = "volume"): Ti
     # Use recursion in the case of a span tag, since it denotes objects underneath it.
     if cNode.tag == "span":
       inc idx
-      mNode.children.add epub.parseTOCElements(itemSeq[idx], cNode.innerText)
+      mNode.text = cNode.innerText
+      mNode.children.add epub.parseTOCElements(itemSeq[idx])
       inc idx
       continue
     # In the case of malformed TOC obj; we should never reach this.
@@ -466,10 +467,10 @@ proc WriteEpub*(epub: Epub3, writePath: string = "") =
       discard addMultipleNodes(toc, @[head, navElement])
       writeFile(epub.path / epub.packageDir / epub.navigation.relPath, XmlTag & $toc)
 
-#var l = LoadEpubFromDir("./ID")
-#loadTOC(l)
+var l = LoadEpubFromDir("./ID")
+loadTOC(l)
 #echo $l
-#l.WriteEpub("./idesk")
+l.WriteEpub("./idesk")
 #let node = l.navigation.nodes[0].children[0]
 #let n = GetPageFromNode(l, node)
 #echo $n.nodes
