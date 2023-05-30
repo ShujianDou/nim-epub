@@ -434,8 +434,11 @@ proc WriteEpub*(epub: Epub3, writePath: string = "") =
       # Default epub path for images-- maybe swap later.
       copyFile(img.path, epub.path / epub.packageDir / "Images" / img.fileName)
   for page in epub.pages:
-    if page.built == "":
-      writeFile(epub.path / epub.packageDir / epub.defaultPageHref / page.name & ".xhtml", XmlTag & $page.toXmlNode())
+    var pageSource: string = page.built
+    if pageSource == "":
+      pageSource = $page.toXmlNode()
+      page.built = ""
+    writeFile(epub.path / epub.packageDir / epub.defaultPageHref / page.name & ".xhtml", XmlTag & pageSource)
   block building:
     # Build the package, manifest, meta, etc...
     block buildRootContainer:
