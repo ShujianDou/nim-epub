@@ -467,10 +467,10 @@ proc WriteEpub*(epub: Epub3, writePath: string = "") =
       discard addMultipleNodes(toc, @[head, navElement])
       writeFile(epub.path / epub.packageDir / epub.navigation.relPath, XmlTag & $toc)
 
-var l = LoadEpubFromDir("./ID")
-loadTOC(l)
+#var l = LoadEpubFromDir("./ID")
+#loadTOC(l)
 #echo $l
-l.WriteEpub("./idesk")
+#l.WriteEpub("./idesk")
 #let node = l.navigation.nodes[0].children[0]
 #let n = GetPageFromNode(l, node)
 #echo $n.nodes
