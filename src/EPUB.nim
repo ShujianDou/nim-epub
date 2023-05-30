@@ -64,6 +64,7 @@ type
     relPath*: string
     nodes*: seq[TiNode]
   Epub3* = ref object
+    name*: string
     isExporting: bool
     len*: int
     path*: string
@@ -370,6 +371,7 @@ proc CreateNewEpub*(title: string, diskPath: string = ""): Epub3 =
     "xml:lang": "en", "xmlns": "http://www.idpf.org/2007/opf"}.toXmlAttributes())
 
   epb.navigation = Nav(title: title)
+  epb.name = title
   epb.defaultPageHref = "Pages/"
 
   # Add TOC to items now, so we don't have to worry about it later.
@@ -469,6 +471,7 @@ proc WriteEpub*(epub: Epub3, writePath: string = "") =
         @[addMultipleNodes(newElement("h2"), @[newText("Contents")]), elementList])
       discard addMultipleNodes(toc, @[head, navElement])
       writeFile(epub.path / epub.packageDir / epub.navigation.relPath, XmlTag & $toc)
+  createZipArchive(epub.path, writePath / epub.name & ".epub")
 
 #var l = LoadEpubFromDir("./ID")
 #loadTOC(l)
