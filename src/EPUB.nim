@@ -30,6 +30,7 @@ type
   Image* = ref object
     fileName*: string
     kind*: ImageKind
+    isPathData: bool
     path*: string
   TiNode* = ref object
     kind*: NodeKind
@@ -417,7 +418,7 @@ proc add*(epub: Epub3, fileName: string, kind: ImageKind, path: string, realFile
 
 # Call this to create all needed directories to write files to
 #   This allows you to call AddImageRaw to add images to the file structure without adding them after zipping.
-proc BeginEpubExport*(epub: Epub3) =
+proc beginExport*(epub: Epub3) =
   createDir(epub.path)
   createDir(epub.path / "META-INF")
   createDir(epub.path / epub.packageDir)
@@ -425,7 +426,7 @@ proc BeginEpubExport*(epub: Epub3) =
   createDir(epub.path / epub.packageDir / "Images")
   epub.isExporting = true
 
-proc WriteEpub*(epub: Epub3, writePath: string = "") =
+proc write*(epub: Epub3, writePath: string = "") =
   if epub.isExporting == false:
     createDir(epub.path)
     createDir(epub.path / "META-INF")
