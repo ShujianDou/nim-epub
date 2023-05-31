@@ -440,6 +440,7 @@ proc WriteEpub*(epub: Epub3, writePath: string = "") =
     if pageSource == "":
       pageSource = $page.toXmlNode()
       page.built = ""
+    page.nodes = nil
     writeFile(epub.path / epub.packageDir / epub.defaultPageHref / page.name & ".xhtml", XmlTag & pageSource)
   block building:
     # Build the package, manifest, meta, etc...
