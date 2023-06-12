@@ -97,7 +97,7 @@ proc taggifyNode*(node: TiNode): string =
     of NodeKind.ximage:
       return "<img src=" & "Images" / node.image.fileName & ">"
     else:
-      return "<{1}>{2}</{3}>" % [$node.kind, node.text, $node.kind]
+      return "<$1>$2</$3>" % [$node.kind, node.text, $node.kind]
 converter toXmlNode(e: EpubMetaData): XmlNode =
   if e.metaType == MetaType.dc:
     return addMultipleNodes(GenXMLElementWithAttrs(($e.metaType & ":" & e.name), e.attrs), @[newText(e.text)])
@@ -372,11 +372,12 @@ proc CreateNewEpub*(title: string, diskPath: string = ""): Epub3 =
     "xml:lang": "en", "xmlns": "http://www.idpf.org/2007/opf"}.toXmlAttributes())
 
   epb.navigation = Nav(title: title)
+  epb.navigation.relPath = "toc.xhtml"
   epb.name = title
   epb.defaultPageHref = "Pages/"
 
   # Add TOC to items now, so we don't have to worry about it later.
-  epb.manifest.add EpubItem(id: "toc", href: epb.packageDir / "toc.xhtml", mediaType: NodeKind.xhtmlXml, properties: "nav")
+  epb.manifest.add EpubItem(id: "toc", href: "toc.xhtml", mediaType: NodeKind.xhtmlXml, properties: "nav")
   epb.spine.refItems.add EpubRefItem(id: "toc", linear: "yes")
 
   result = epb
@@ -479,7 +480,7 @@ proc write*(epub: Epub3, writePath: string = "") =
         @[addMultipleNodes(newElement("h2"), @[newText("Contents")]), elementList])
       discard addMultipleNodes(toc, @[head, navElement])
       writeFile(epub.path / epub.packageDir / epub.navigation.relPath, XmlTag & $toc)
-  createZipArchive(epub.path, writePath / epub.name & ".epub")
+  createZipArchive(epub.path & "/", writePath / epub.name & ".epub")
 
 #var l = LoadEpubFromDir("./ID")
 #loadTOC(l)
