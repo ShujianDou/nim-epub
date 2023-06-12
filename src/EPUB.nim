@@ -30,7 +30,7 @@ type
   Image* = ref object
     fileName*: string
     kind*: ImageKind
-    isPathData: bool
+    isPathData*: bool
     path*: string
   TiNode* = ref object
     kind*: NodeKind
