@@ -407,14 +407,18 @@ proc add*(epub: Epub3, volume: Volume) =
     volumeNode.children.add pageSect
   epub.navigation.nodes.add volumeNode
 # Write an image to disk, if you didn't set path as base64 image data.
-proc add*(epub: Epub3, img: Image, realFile: bool = false) =
-  if realFile:
+proc add*(epub: Epub3, img: Image) =
+  # Write image to a temporary location on disk, so as to not have to keep GB's in memory.
+  if img.isPathData:
+    let tempPath = getTempDir() / img.fileName
+    writeFile(tempPath, img.path)
+    img.path = tempPath
     epub.referencedImages.add img
     return
   assert epub.isExporting
   writeFile(epub.path / epub.packageDir / "Images" / img.fileName, img.path)
-proc add*(epub: Epub3, fileName: string, kind: ImageKind, path: string, realFile: bool) =
-  add(epub, Image(fileName: fileName, kind: kind, path: path), realFile)
+proc add*(epub: Epub3, fileName: string, kind: ImageKind, path: string) =
+  add(epub, Image(fileName: fileName, kind: kind, path: path))
 
 # Call this to create all needed directories to write files to
 #   This allows you to call AddImageRaw to add images to the file structure without adding them after zipping.
@@ -424,6 +428,8 @@ proc beginExport*(epub: Epub3) =
   createDir(epub.path / epub.packageDir)
   createDir(epub.path / epub.packageDir / epub.defaultPageHref)
   createDir(epub.path / epub.packageDir / "Images")
+  # TODO: Modify to be 'better' by writing container.xml 
+  #   and auto updating required xml files/toc every addition/deletion.
   epub.isExporting = true
 
 proc write*(epub: Epub3, writePath: string = "") =
@@ -441,7 +447,7 @@ proc write*(epub: Epub3, writePath: string = "") =
     if pageSource == "":
       pageSource = $page.toXmlNode()
       page.built = ""
-    page.nodes = nil
+    page.nodes = @[]
     writeFile(epub.path / epub.packageDir / epub.defaultPageHref / page.name & ".xhtml", XmlTag & pageSource)
   block building:
     # Build the package, manifest, meta, etc...
