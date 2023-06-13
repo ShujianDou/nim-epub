@@ -8,7 +8,7 @@ import zippy/ziparchives
 var PathSeparatorChar: char = '/'
 when defined(windows):
   PathSeparatorChar = '\\'
-const XmlTag: string = "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>"
+const XmlTag: string = "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n"
 type
   MetaType* = enum
       dc, meta
@@ -387,7 +387,7 @@ proc add*(epub: Epub3, page: Page, nNav: bool = true) =
   let id: string = "s" & $len(epub.manifest)
   epub.manifest.add EpubItem(id: id, href: epub.defaultPageHref / page.name & ".xhtml",
     mediaType: NodeKind.xhtmlXml)
-  epub.spine.refItems.add EpubRefItem(id: id)
+  epub.spine.refItems.add EpubRefItem(id: id, linear: $true)
   if nNav:
     epub.navigation.nodes.add TiNode(kind: NodeKind.pageSect, text: page.name, 
       attrs: {"href": epub.defaultPageHref / page.name & ".xhtml"}.toXmlAttributes())
@@ -478,7 +478,8 @@ proc write*(epub: Epub3, writePath: string = "") =
         epub.navigation)
       let navElement: XmlNode = addMultipleNodes(GenXMLElementWithAttrs("nav", {"epub:type": "toc"}),
         @[addMultipleNodes(newElement("h2"), @[newText("Contents")]), elementList])
-      discard addMultipleNodes(toc, @[head, navElement])
+      let body = addMultipleNodes(newElement("body"), @[navElement])
+      discard addMultipleNodes(toc, @[head, body])
       writeFile(epub.path / epub.packageDir / epub.navigation.relPath, XmlTag & $toc)
   createZipArchive(epub.path & "/", writePath / epub.name & ".epub")
 
