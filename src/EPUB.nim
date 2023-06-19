@@ -13,7 +13,7 @@ type
   MetaType* = enum
       dc, meta
   ImageKind* = enum
-    gif, jpeg, png, svg
+    gif, jpeg, png, svg, cover
   NodeKind* = enum
     paragraph = "p",
     header = "h1",
@@ -409,6 +409,10 @@ proc add*(epub: Epub3, volume: Volume) =
   epub.navigation.nodes.add volumeNode
 # Write an image to disk, if you didn't set path as base64 image data.
 proc add*(epub: Epub3, img: Image) =
+  # If an image is a cover, add required info
+  if img.kind == ImageKing.cover:
+    epub.manifest.add GenXMLElementWithAttrs("item", {"id": "cover", "src": "../" & image.name, "href": "../" & image.name, "media-type": $(image.kind)})
+    epub.metaData.add GenXMLElementWithAttrs("meta", {"content": "cover", "name": "cover"})
   # Write image to a temporary location on disk, so as to not have to keep GB's in memory.
   if img.isPathData:
     let tempPath = getTempDir() / img.fileName
@@ -441,6 +445,9 @@ proc write*(epub: Epub3, writePath: string = "") =
     createDir(epub.path / epub.packageDir / epub.defaultPageHref)
     createDir(epub.path / epub.packageDir / "Images")
     for img in epub.referencedImages:
+      if img.kind == ImageKind.cover:
+        copyFile(img.path, epub.path / img.fileName)
+        return
       # Default epub path for images-- maybe swap later.
       copyFile(img.path, epub.path / epub.packageDir / "Images" / img.fileName)
   for page in epub.pages:
