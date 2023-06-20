@@ -410,7 +410,7 @@ proc add*(epub: Epub3, volume: Volume) =
 # Write an image to disk, if you didn't set path as base64 image data.
 proc add*(epub: Epub3, img: Image) =
   # If an image is a cover, add required info
-  if img.kind == ImageKing.cover:
+  if img.kind == ImageKind.cover:
     epub.manifest.add GenXMLElementWithAttrs("item", {"id": "cover", "src": "../" & image.fileName, "href": "../" & image.fileName, "media-type": $(NodeKind.opfImageJ)})
     epub.metaData.add GenXMLElementWithAttrs("meta", {"content": "cover", "name": "cover"})
   # Write image to a temporary location on disk, so as to not have to keep GB's in memory.
