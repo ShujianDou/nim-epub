@@ -447,7 +447,7 @@ proc write*(epub: Epub3, writePath: string = "") =
     for img in epub.referencedImages:
       if img.kind == ImageKind.cover:
         copyFile(img.path, epub.path / img.fileName)
-        return
+        break
       # Default epub path for images-- maybe swap later.
       copyFile(img.path, epub.path / epub.packageDir / "Images" / img.fileName)
   for page in epub.pages:
