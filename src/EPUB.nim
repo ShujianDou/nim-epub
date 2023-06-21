@@ -66,6 +66,7 @@ type
     nodes*: seq[TiNode]
   Epub3* = ref object
     name*: string
+    coverDefine*: string
     isExporting: bool
     len*: int
     path*: string
@@ -235,6 +236,7 @@ proc LoadEpubFromDir*(path: string): Epub3 =
   # If the root container file does not exist, we can not continue.
   assert fileExists(path / "META-INF" / "container.xml")
   var epub: Epub3 = Epub3(path: path)
+  epub.name = path.split(PathSeparatorChar)[^1]
   let rootNode = parseXml(readFile(path / "META-INF" / "container.xml")).child("rootfiles").child("rootfile")
   epub.rootFile = (rootNode.attr("full-path"), NodeKind.oebps)
   epub.packageDir = join(epub.rootFile.fullPath.split(PathSeparatorChar)[0..^2], $PathSeparatorChar)
@@ -247,6 +249,16 @@ proc LoadEpubFromDir*(path: string): Epub3 =
   epub.packageHeader = loadPackage(packageXmlNode)
   epub.metaData = loadMetaData(packageXmlNode.child("metadata"))
   epub.manifest = loadManifest(packageXmlNode.child("manifest"))
+  for mdata in epub.metaData:
+    if mdata.attrs == nil:
+      continue
+    if mdata.attrs.hasKey("name") and mdata.attrs["name"] == "cover":
+      let searchTerm = mdata.attrs["content"]
+      for item in epub.manifest:
+        if item.id == searchTerm:
+          epub.coverDefine = item.href
+          break
+      break
   for item in epub.manifest:
     if item.mediaType == NodeKind.xhtmlXml and item.properties != "nav":
       epub.defaultPageHref = join(item.href.split('/')[0..^2])
@@ -409,10 +421,10 @@ proc add*(epub: Epub3, volume: Volume) =
   epub.navigation.nodes.add volumeNode
 # Write an image to disk, if you didn't set path as base64 image data.
 proc add*(epub: Epub3, img: Image) =
-  # If an image is a cover, add required info
-  if img.kind == ImageKind.cover:
+  # If an image is a cover, add required info; skip if already exists
+  if img.kind == ImageKind.cover and epub.coverDefine == "":
     epub.manifest.add EpubItem(id: "cover", href: "../" & img.fileName, mediaType: NodeKind.opfImageJ)
-    epub.metaData.add EpubMetaData(metaType: MetaType.meta, name: "cover", text: "cover")
+    epub.metaData.add EpubMetaData(metaType: MetaType.meta, name: "cover", attrs: {"content": "cover", "name": "cover"}.toXmlAttributes())
   # Write image to a temporary location on disk, so as to not have to keep GB's in memory.
   if img.isPathData:
     let tempPath = getTempDir() / img.fileName
