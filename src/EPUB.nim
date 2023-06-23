@@ -163,6 +163,12 @@ proc `$`*(node: TiNode, htmlify: bool = false): string =
   stringBuilder.add taggifyNode(node)
   for i in node.children:
     stringBuilder.add taggifyNode(i) & "\n"
+proc `$`*(page: Page): string =
+  var stringBuilder: string
+  for node in page.nodes:
+    stringBuilder.add node.text
+    stringBuilder.add "\n"
+  result = stringBuilder
 proc `$`*(epub: Epub3): string =
   var stringBuilder: string
   stringBuilder.add("(for debug)|Occupied Mem (MB): " & $(getOccupiedMem() / 1000000))

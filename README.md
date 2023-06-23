@@ -1,5 +1,3 @@
-Documentation for the rewrite version is not yet available, since things are not yet finalized.
-
 To open an epub to read content:
 ```nim
 import EPUB
@@ -8,6 +6,8 @@ import EPUB
 var myEpub = LoadEpubFromDir("./yourEpublocation")
 # Loads the table of contents for navigation of pages.
 loadTOC(myEpub)
+# Get the first "Page" object from a navigation node
+let ourPage = myEpub.getPageFromNode(myEpub.navigation.nodes[0])
+# Print the raw text of this Page object (ignores images) (note: currently computes text every call, does not cache)
+echo $ourPage
 ```
-
-There are currently no functions to generate TiNodes from pages, nor create pages/epubs in this version.
