@@ -37,6 +37,7 @@ type
     attrs*: XmlAttributes
     text*: string
     image*: Image
+    customPath*: string
     children*: seq[TiNode]
   EpubItem* = ref object
     id*: string
@@ -96,6 +97,8 @@ proc addMultipleNodes(host: XmlNode, nodes: seq[XmlNode]): XmlNode =
 proc taggifyNode*(node: TiNode): string =
   case node.kind:
     of NodeKind.ximage:
+      if node.customPath.len > 0:
+        return "<img src=" & node.customPath & ">"
       return "<img src=" & "../Images" / node.image.fileName & ">"
     else:
       return "<$1>$2</$3>" % [$node.kind, node.text, $node.kind]
