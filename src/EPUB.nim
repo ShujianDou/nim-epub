@@ -96,7 +96,7 @@ proc addMultipleNodes(host: XmlNode, nodes: seq[XmlNode]): XmlNode =
 proc taggifyNode*(node: TiNode): string =
   case node.kind:
     of NodeKind.ximage:
-      return "<img src=" & "Images" / node.image.fileName & ">"
+      return "<img src=" & "../Images" / node.image.fileName & ">"
     else:
       return "<$1>$2</$3>" % [$node.kind, node.text, $node.kind]
 converter toXmlNode(e: EpubMetaData): XmlNode =
