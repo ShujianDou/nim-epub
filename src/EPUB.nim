@@ -406,6 +406,8 @@ proc CreateNewEpub*(title: string, diskPath: string = ""): Epub3 =
 
   result = epb
 
+#@[mData, manifest, spine]
+
 # All update procs should not be called if exporting is set to false.
 proc updateXMLToc(epub: Epub3) =
   let elementList: XmlNode = addMultipleNodes(GenXMLElementWithAttrs("ol", {"epub:type": "list"}),
@@ -413,16 +415,27 @@ proc updateXMLToc(epub: Epub3) =
   let navElement: XmlNode = addMultipleNodes(GenXMLElementWithAttrs("nav", {"epub:type": "toc"}),
     @[addMultipleNodes(newElement("h2"), @[newText("Contents")]), elementList])
   let body = addMultipleNodes(newElement("body"), @[navElement])
-  epub.xmlTOC.items[1] = body
+  let head = epub.xmlTOC.child("head")
+  epub.xmlTOC.clear()
+  epub.xmlTOC.add head
+  epub.xmlTOC.add body
 proc updateSpineManifest(epub: Epub3) =
   let manifest = addMultipleNodes(newElement("manifest"), epub.manifest)
   let spine = addMultipleNodes(GenXMLElementWithAttrs("spine", epub.spine.propertyAttr), epub.spine.refItems)
-  epub.xmlOPF.items[1] = manifest
-  epub.xmlOPF.items[2] = spine
+  let mdata = epub.xmlOPF.child("metadata")
+  epub.xmlOPF.clear()
+  epub.xmlOPF.add mdata
+  epub.xmlOPF.add(manifest)
+  epub.xmlOPF.add(spine)
 proc updateMetaData(epub: Epub3) =
   let mData = addMultipleNodes(GenXMLElementWithAttrs("metadata",
     {"xmlns:dc": "http://purl.org/dc/elements/1.1/"}), epub.metaData)
-  epub.xmlOPF.items[0] = mData
+  let manifest = epub.xmlOPF.child("manifest")
+  let spine = epub.xmlOPF.child("spine")
+  epub.xmlOPF.clear()
+  epub.xmlOPF.add mData
+  epub.xmlOPF.add manifest
+  epub.xmlOPF.add spine
 proc updateFilesOnDisk(epub: Epub3) =
   assert epub.isExporting
   writeFile(epub.path / epub.rootFile.fullPath, XmlTag & $epub.xmlOPF)
