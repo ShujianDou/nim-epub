@@ -104,7 +104,7 @@ proc taggifyNode*(node: TiNode): string =
         return "<img src=" & node.customPath & ">"
       return "<img src=" & "../Images" / node.image.fileName & ">"
     else:
-      return "<$1>$2</$3>" % [$node.kind, node.text, $node.kind]
+      return "<$1>$2</$3>" % [$node.kind, xmltree.escape(node.text), $node.kind]
 converter toXmlNode(e: EpubMetaData): XmlNode =
   if e.metaType == MetaType.dc:
     return addMultipleNodes(GenXMLElementWithAttrs(($e.metaType & ":" & e.name), e.attrs), @[newText(e.text)])
@@ -162,9 +162,9 @@ proc `$`*(node: TiNode, htmlify: bool = false): string =
   var stringBuilder: string
   if not htmlify:
     var stringBuilder: string
-    stringBuilder.add node.text
+    stringBuilder.add xmltree.escape(node.text)
     for n in node.children:
-      stringBuilder.add "\n" & $n
+      stringBuilder.add "\n" & xmltree.escape($n)
     return stringBuilder
   stringBuilder.add taggifyNode(node)
   for i in node.children:
