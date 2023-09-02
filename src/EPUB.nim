@@ -172,7 +172,7 @@ proc `$`*(node: TiNode, htmlify: bool = false): string =
 proc `$`*(page: Page): string =
   var stringBuilder: string
   for node in page.nodes:
-    stringBuilder.add node.text
+    stringBuilder.add xmltree.escape(node.text)
     stringBuilder.add "\n"
   result = stringBuilder
 proc `$`*(epub: Epub3): string =
@@ -415,27 +415,28 @@ proc updateXMLToc(epub: Epub3) =
   let navElement: XmlNode = addMultipleNodes(GenXMLElementWithAttrs("nav", {"epub:type": "toc"}),
     @[addMultipleNodes(newElement("h2"), @[newText("Contents")]), elementList])
   let body = addMultipleNodes(newElement("body"), @[navElement])
-  let head = epub.xmlTOC.child("head")
-  epub.xmlTOC.clear()
-  epub.xmlTOC.add head
-  epub.xmlTOC.add body
+  for i in epub.xmlTOC.mitems():
+    if i.tag == "body":
+      i = body
+    continue
 proc updateSpineManifest(epub: Epub3) =
   let manifest = addMultipleNodes(newElement("manifest"), epub.manifest)
   let spine = addMultipleNodes(GenXMLElementWithAttrs("spine", epub.spine.propertyAttr), epub.spine.refItems)
-  let mdata = epub.xmlOPF.child("metadata")
-  epub.xmlOPF.clear()
-  epub.xmlOPF.add mdata
-  epub.xmlOPF.add(manifest)
-  epub.xmlOPF.add(spine)
+  for i in epub.xmlOPF.mitems():
+    case i.tag:
+      of "manifest":
+        i = manifest
+      of "spine":
+        i = spine
+      else:
+        continue
 proc updateMetaData(epub: Epub3) =
   let mData = addMultipleNodes(GenXMLElementWithAttrs("metadata",
     {"xmlns:dc": "http://purl.org/dc/elements/1.1/"}), epub.metaData)
-  let manifest = epub.xmlOPF.child("manifest")
-  let spine = epub.xmlOPF.child("spine")
-  epub.xmlOPF.clear()
-  epub.xmlOPF.add mData
-  epub.xmlOPF.add manifest
-  epub.xmlOPF.add spine
+  for i in epub.xmlOPF.mitems():
+    if i.tag == "metadata":
+      i = mData
+    continue
 proc updateFilesOnDisk(epub: Epub3) =
   assert epub.isExporting
   writeFile(epub.path / epub.rootFile.fullPath, XmlTag & $epub.xmlOPF)
