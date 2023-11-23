@@ -290,7 +290,6 @@ proc LoadEpubFromDir*(path: string): Epub3 =
 proc LoadEpubFile*(path: string): Epub3 =
   assert fileExists(path)
   let tempPath = getTempDir() / join(path.split(PathSeparatorChar)[^1].split('.')[0..^1])
-  createDir(tempPath)
   extractAll(path, tempPath)
   # Return the result from the actual loading function.
   result = LoadEpubFromDir(tempPath)
