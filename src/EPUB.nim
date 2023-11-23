@@ -44,6 +44,7 @@ type
     href*: string
     mediaType*: NodeKind
     properties*: string
+    src*: string
   EpubRefItem* = ref object
     id*: string
     # Can only be no or yes
@@ -110,7 +111,12 @@ converter toXmlNode(e: EpubMetaData): XmlNode =
     return addMultipleNodes(GenXMLElementWithAttrs(($e.metaType & ":" & e.name), e.attrs), @[newText(e.text)])
   return addMultipleNodes(GenXMLElementWithAttrs(($e.metaType), e.attrs), @[newText(e.text)])
 converter toXmlNode(e: EpubItem): XmlNode =
-  return GenXMLElementWithAttrs("item", {"id": e.id, "href": e.href, "media-type": $e.mediaType, "properties": e.properties})
+  var l = GenXMLElementWithAttrs("item", {"id": e.id, "href": e.href, "media-type": $e.mediaType})
+  if e.src != "":
+    l.attrs["src"] = e.src
+  if e.properties != "":
+    l.attrs["properties"] = e.properties
+  return l
 converter toXmlNode(e: EpubRefItem): XmlNode =
   return GenXMLElementWithAttrs("itemref", {"idref": e.id, "linear": if e.linear == "": "no" else: e.linear})
 converter toXmlNode(page: Page): XmlNode =
@@ -447,7 +453,7 @@ proc add*(epub: Epub3, page: Page, nNav: bool = true) =
   let id: string = "s" & $len(epub.manifest)
   epub.manifest.add EpubItem(id: id, href: epub.defaultPageHref / page.name & ".xhtml",
     mediaType: NodeKind.xhtmlXml)
-  epub.spine.refItems.add EpubRefItem(id: id, linear: $true)
+  epub.spine.refItems.add EpubRefItem(id: id, linear: "yes")
   if nNav:
     epub.navigation.nodes.add TiNode(kind: NodeKind.pageSect, text: page.name, 
       attrs: {"href": epub.defaultPageHref / page.name & ".xhtml"}.toXmlAttributes())
@@ -474,10 +480,14 @@ proc add*(epub: Epub3, volume: Volume) =
 proc add*(epub: Epub3, img: Image) =
   # If an image is a cover, add required info; skip if already exists
   if img.kind == ImageKind.cover and epub.coverDefine == "":
-    epub.manifest.add EpubItem(id: "cover", href: "../" & img.fileName, mediaType: NodeKind.opfImageJ)
+    epub.manifest.add EpubItem(id: "cover", href: "../" & img.fileName, mediaType: NodeKind.opfImageJ, src: "../" & img.fileName)
     epub.metaData.add EpubMetaData(metaType: MetaType.meta, name: "cover", attrs: {"content": "cover", "name": "cover"}.toXmlAttributes())
     if epub.isExporting:
       updateMetaData(epub)
+      writeFile(epub.path / img.fileName, img.path)
+      updateXMLToc(epub)
+      updateSpineManifest(epub)
+      updateFilesOnDisk(epub)
   # Write image to a temporary location on disk, so as to not have to keep GB's in memory.
   if img.isPathData and epub.isExporting == false:
     let tempPath = getTempDir() / epub.name / img.fileName
