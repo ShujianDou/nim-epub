@@ -5,9 +5,9 @@ import std/[strutils, strtabs, sequtils, htmlparser, xmlparser, xmltree, os]
 # For archiving and decompressing the EPUB files.
 import zippy/ziparchives
 
-var PathSeparatorChar: char = '/'
-when defined(windows):
-  PathSeparatorChar = '\\'
+const PathSeparatorChar: char =
+  when defined(windows): '\\'
+  else: '/'
 const XmlTag: string = "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n"
 type
   MetaType* = enum
@@ -139,6 +139,9 @@ converter toXmlNode(page: Page): XmlNode =
     htmlV.add body
   page.built = $htmlV
   return htmlV
+iterator items*(nav: Nav): TiNode =
+  for i in nav.nodes:
+    yield i
 proc parseTocNode(e: TiNode): XmlNode =
   var idx: int = 0
   var html: XmlNode
